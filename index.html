@@ -1,0 +1,3637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>灵魂画手 · 多人在线联机你画我猜</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --ink: #1e293b;
+      --paper: #fffdf8;
+      --coral: #ff5a5f;
+      --cobalt: #2563eb;
+      --amber: #f59e0b;
+      --emerald: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background-color: var(--paper);
+      background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: var(--ink);
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .comic-card {
+      background: #ffffff;
+      border: 2.5px solid var(--ink);
+      box-shadow: 4px 4px 0 var(--ink);
+      border-radius: 16px;
+    }
+
+    .comic-card-sm {
+      background: #ffffff;
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      border-radius: 12px;
+    }
+
+    .comic-btn {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--ink);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .comic-btn:hover:not(:disabled) {
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0 var(--ink);
+    }
+
+    .comic-btn:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 var(--ink);
+    }
+
+    .comic-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      max-height: 44vh;
+      background: #ffffff;
+      border: 2.5px solid var(--ink);
+      border-radius: 14px;
+      box-shadow: 4px 4px 0 var(--ink);
+      overflow: hidden;
+      touch-action: none;
+    }
+    @media (min-width: 1024px) {
+      .canvas-wrap {
+        max-height: 520px;
+      }
+    }
+
+    #drawCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      border: 2px solid var(--ink);
+      cursor: pointer;
+      transition: transform 0.12s ease;
+      flex-shrink: 0;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.12);
+    }
+
+    .color-swatch.active {
+      transform: scale(1.18);
+      box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--cobalt);
+    }
+
+    .tool-btn {
+      border: 2px solid var(--ink);
+      border-radius: 10px;
+      background: #ffffff;
+      transition: all 0.12s ease;
+      cursor: pointer;
+    }
+
+    .tool-btn.active {
+      background: #dbeafe;
+      border-color: var(--cobalt);
+      color: var(--cobalt);
+      box-shadow: 2px 2px 0 var(--cobalt);
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translateY(16px) scale(0.7); }
+      15% { opacity: 1; transform: translateY(0) scale(1.08); }
+      80% { opacity: 1; transform: translateY(-65px) scale(1); }
+      100% { opacity: 0; transform: translateY(-95px) scale(0.9); }
+    }
+
+    .reaction-bubble {
+      position: absolute;
+      bottom: 16px;
+      pointer-events: none;
+      animation: floatUp 1.9s ease-out forwards;
+      z-index: 30;
+      background: rgba(255, 255, 255, 0.95);
+      border: 2px solid var(--ink);
+      border-radius: 9999px;
+      padding: 4px 12px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 2px 2px 0 var(--ink);
+      white-space: nowrap;
+    }
+
+    @keyframes pulseUrgent {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+
+    .timer-urgent {
+      animation: pulseUrgent 0.6s infinite;
+      background-color: #fee2e2 !important;
+      color: #dc2626 !important;
+      border-color: #dc2626 !important;
+    }
+
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  </style>
+</head>
+<body class="antialiased">
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-[70] flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
+
+  <!-- Top Navigation -->
+  <header class="sticky top-0 z-40 bg-[#fffdf8]/95 backdrop-blur border-b-2 border-slate-800">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-amber-400 border-2 border-slate-800 shadow-[2px_2px_0_#1e293b] flex items-center justify-center shrink-0">
+          <i data-lucide="palette" class="w-5 h-5 text-slate-900"></i>
+        </div>
+        <div class="truncate">
+          <h1 class="font-extrabold text-sm sm:text-lg leading-tight tracking-tight truncate"><span class="hidden sm:inline">灵魂画手 · </span>你画我猜</h1>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div id="connectionBadge" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border-2 border-slate-800 bg-slate-100">
+          <span id="connDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span id="connText">未联机</span>
+        </div>
+
+        <button id="btnRoomSettings" class="hidden comic-btn px-2.5 py-1.5 rounded-lg bg-amber-200 text-slate-900 text-xs sm:text-sm font-bold items-center gap-1" title="房主设置与成员管理">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">房间设置</span>
+        </button>
+
+        <button id="btnRules" class="comic-btn px-2 py-1.5 sm:px-2.5 rounded-lg bg-white text-xs sm:text-sm font-bold flex items-center gap-1" title="玩法说明">
+          <i data-lucide="help-circle" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">玩法</span>
+        </button>
+
+        <button id="btnMute" class="comic-btn p-1.5 rounded-lg bg-white" title="音效开关">
+          <i id="muteIcon" data-lucide="volume-2" class="w-4 h-4"></i>
+        </button>
+
+        <button id="btnBackLobby" class="hidden comic-btn px-2 py-1.5 sm:px-2.5 rounded-lg bg-rose-100 text-rose-800 text-xs sm:text-sm font-bold flex items-center gap-1">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span>大厅</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-3 sm:px-6 pt-4 pb-24 sm:py-7">
+
+    <!-- ================= LOBBY VIEW ================= -->
+    <section id="lobbyView" class="space-y-6">
+      <!-- Hero Banner -->
+      <div class="comic-card p-5 sm:p-7 bg-gradient-to-br from-amber-50 via-white to-sky-50">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div class="space-y-2 max-w-2xl">
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-300 border-2 border-slate-800 text-xs font-extrabold">
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+              <span>免服务器 P2P 多人联机 · 人数/局数/限时全自定义</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              叫上好兄弟们，看看谁才是真正的「灵魂画手」
+            </h2>
+            <p class="text-sm sm:text-base text-slate-600 leading-relaxed">
+              支持 <strong>多人 P2P 实时联机</strong>（房主可自由设置人数、局数、限时与踢人，回合结束自动无缝切下一轮），也支持 <strong>同屏双人轮流</strong> 与 <strong>单人画板练习</strong>，内置 120+ 精选爆笑词库与专属梗词。
+            </p>
+          </div>
+
+          <!-- Nickname Quick Card -->
+          <div class="comic-card-sm p-4 bg-white w-full lg:w-80 shrink-0 space-y-2.5">
+            <label for="inputMyName" class="block text-xs font-extrabold uppercase tracking-wider text-slate-500">你的玩家昵称</label>
+            <div class="flex gap-2">
+              <input id="inputMyName" type="text" maxlength="12" placeholder="例如：画坛奇才" class="flex-1 min-w-0 px-3 py-2 rounded-lg border-2 border-slate-800 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <button id="btnRandomName" class="comic-btn px-3 py-2 rounded-lg bg-amber-200 text-slate-900 text-xs font-bold" title="随机昵称">
+                <i data-lucide="dices" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div class="text-xs text-slate-500 flex items-center gap-1">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i>
+              <span>联机时会实时显示在所有人的房间列表里</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <!-- Mode 1: Online Multi-Player P2P Room -->
+        <div class="comic-card p-5 flex flex-col justify-between bg-white lg:col-span-2">
+          <div class="space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white border-2 border-slate-800 flex items-center justify-center shrink-0">
+                  <i data-lucide="wifi" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-lg font-extrabold text-slate-900">多人在线联机房间（可自定义人数）</h3>
+                  <p class="text-xs text-slate-500">房主建房后可依次邀请多位好友，人齐即刻开局</p>
+                </div>
+              </div>
+
+              <!-- Host / Join Toggle -->
+              <div class="inline-flex rounded-xl border-2 border-slate-800 p-0.5 bg-slate-100">
+                <button id="tabHost" class="px-3.5 py-1.5 rounded-lg text-xs font-extrabold bg-blue-600 text-white transition">我要建房</button>
+                <button id="tabJoin" class="px-3.5 py-1.5 rounded-lg text-xs font-extrabold text-slate-700 hover:text-slate-900 transition">加入房间</button>
+              </div>
+            </div>
+
+            <!-- HOST PANEL -->
+            <div id="panelHost" class="space-y-4 pt-1">
+              <!-- Room Settings Grid (Custom Numbers + More Game Options) -->
+              <div class="bg-slate-50 p-3.5 rounded-xl border-2 border-slate-200 space-y-3">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div>
+                    <label for="selectMaxPlayers" class="block text-xs font-bold text-slate-600 mb-1">人数上限 (2~20)</label>
+                    <input id="selectMaxPlayers" type="number" min="2" max="20" value="4" class="w-full min-w-0 px-2.5 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-sm font-extrabold" />
+                  </div>
+                  <div>
+                    <label for="selectRounds" class="block text-xs font-bold text-slate-600 mb-1">总回合数 (1~50)</label>
+                    <input id="selectRounds" type="number" min="1" max="50" value="6" class="w-full min-w-0 px-2.5 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-sm font-extrabold" />
+                  </div>
+                  <div>
+                    <label for="selectTime" class="block text-xs font-bold text-slate-600 mb-1">每轮限时秒 (15~300)</label>
+                    <input id="selectTime" type="number" min="15" max="300" step="5" value="80" class="w-full min-w-0 px-2.5 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-sm font-extrabold" />
+                  </div>
+                  <div>
+                    <label for="selectCategory" class="block text-xs font-bold text-slate-600 mb-1">词库主题</label>
+                    <select id="selectCategory" class="w-full min-w-0 px-2 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-xs sm:text-sm font-bold">
+                      <option value="all">🎲 全部混合</option>
+                      <option value="daily">🧋 美食日常</option>
+                      <option value="animal">🐼 动物世界</option>
+                      <option value="meme">🔥 热梗动作</option>
+                      <option value="idiom">📜 成语脑洞</option>
+                      <option value="custom">⭐ 仅自定义</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Advanced Rule Options -->
+                <details class="rounded-lg border border-slate-300 bg-white px-3 py-2">
+                  <summary class="text-xs font-extrabold text-slate-700 cursor-pointer select-none flex items-center justify-between">
+                    <span>⚙️ 更多高级规则设置（选词数 / 切轮秒数 / 提示开关 / 跳过权限）</span>
+                  </summary>
+                  <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-3 text-xs">
+                    <div>
+                      <label for="selectChoiceCount" class="block font-bold text-slate-600 mb-1">画手候选词数</label>
+                      <select id="selectChoiceCount" class="w-full px-2 py-1.5 rounded-lg border-2 border-slate-800 bg-white font-bold">
+                        <option value="2">2 选 1（硬核）</option>
+                        <option value="3" selected>3 选 1（标准）</option>
+                        <option value="4">4 选 1（轻松）</option>
+                        <option value="5">5 选 1（自选爽局）</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="inputAutoNextDelay" class="block font-bold text-slate-600 mb-1">切轮倒计时 (2~15秒)</label>
+                      <input id="inputAutoNextDelay" type="number" min="2" max="15" value="4" class="w-full px-2.5 py-1.5 rounded-lg border-2 border-slate-800 bg-white font-extrabold" />
+                    </div>
+                    <div class="col-span-2 sm:col-span-1 flex flex-col justify-center gap-1.5 pt-1">
+                      <label class="inline-flex items-center gap-1.5 font-bold text-slate-700 cursor-pointer">
+                        <input id="chkAutoHint" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
+                        <span>过半自动线索提示</span>
+                      </label>
+                      <label class="inline-flex items-center gap-1.5 font-bold text-slate-700 cursor-pointer">
+                        <input id="chkCloseGuess" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
+                        <span>近似字“很接近”提示</span>
+                      </label>
+                      <label class="inline-flex items-center gap-1.5 font-bold text-slate-700 cursor-pointer">
+                        <input id="chkAllowSkip" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
+                        <span>允许画手跳过回合</span>
+                      </label>
+                    </div>
+                  </div>
+                </details>
+              </div>
+
+              <!-- Quick Room Code Box (PeerJS Cloud - Zero Copy-Paste!) -->
+              <div class="p-3.5 rounded-xl border-2 border-blue-600 bg-blue-50/50 space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div class="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
+                      <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i>
+                      <span>极速房间号联机（部署到公网后免复制长码）</span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 mt-0.5">一键生成 6 位房间号和专属链接，所有兄弟点链接或输号码直接进房</p>
+                  </div>
+                  <button id="btnCreateQuickRoom" class="comic-btn px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-extrabold flex items-center gap-1.5 shrink-0">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                    <span>创建 6 位房间号</span>
+                  </button>
+                </div>
+
+                <div id="quickRoomActiveBox" class="hidden pt-2 border-t border-blue-200 flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-600">房间号：</span>
+                    <span id="displayRoomCode" class="px-3 py-1 rounded-lg bg-white border-2 border-slate-900 font-mono text-lg font-extrabold tracking-[0.2em] text-blue-700">------</span>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <button id="btnCopyRoomCode" class="comic-btn px-3 py-1.5 rounded-lg bg-amber-300 text-slate-900 text-xs font-extrabold flex items-center gap-1">
+                      <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      <span>复制房号</span>
+                    </button>
+                    <button id="btnCopyRoomLink" class="comic-btn px-3 py-1.5 rounded-lg bg-emerald-400 text-slate-900 text-xs font-extrabold flex items-center gap-1">
+                      <i data-lucide="link-2" class="w-3.5 h-3.5"></i>
+                      <span>复制邀请链接</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Host Waiting Room Roster -->
+              <div id="hostRoomRosterCard" class="p-3.5 rounded-xl border-2 border-slate-800 bg-amber-50/40 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-extrabold text-slate-900">当前房间成员</span>
+                    <span id="lobbyMemberCount" class="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-extrabold">1 / 4 人</span>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button id="btnCreateOffer" class="comic-btn px-3 py-1.5 rounded-xl bg-white text-slate-700 text-xs font-extrabold flex items-center gap-1" title="无外网信令时的备用手动邀请码方式">
+                      <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                      <span>备用：手动传码邀请</span>
+                    </button>
+                    <button id="btnHostStartOnline" disabled class="comic-btn px-4 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-extrabold flex items-center gap-1.5">
+                      <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                      <span>开始联机游戏</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Live Member Chips with Kick -->
+                <div id="lobbyRosterList" class="flex flex-wrap gap-2"></div>
+              </div>
+
+              <!-- Invite Code & Answer Input Box -->
+              <div id="hostOfferBox" class="hidden p-3.5 rounded-xl border-2 border-blue-600 bg-blue-50/40 space-y-3">
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                      <span class="w-5 h-5 rounded-full bg-blue-600 text-white inline-flex items-center justify-center text-[11px]">1</span>
+                      复制这份「邀请码」发给要加入的好友
+                    </span>
+                    <button id="btnCancelInvite" class="text-xs font-bold text-slate-500 hover:text-rose-600">取消本次邀请</button>
+                  </div>
+                  <div class="relative">
+                    <textarea id="textareaHostOffer" readonly rows="2" class="w-full p-2.5 pr-24 rounded-xl border-2 border-slate-800 bg-amber-50 text-xs font-mono text-slate-700 resize-none focus:outline-none"></textarea>
+                    <button id="btnCopyOffer" class="comic-btn absolute top-2 right-2 px-3 py-1.5 rounded-lg bg-amber-300 text-slate-900 text-xs font-extrabold flex items-center gap-1">
+                      <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                      <span>复制</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="space-y-1.5">
+                  <span class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white inline-flex items-center justify-center text-[11px]">2</span>
+                    粘贴这位好友回传的「应答码」，即可拉他进房（多人请逐个邀请）
+                  </span>
+                  <div class="flex flex-col sm:flex-row gap-2">
+                    <textarea id="textareaHostAnswerInput" rows="2" placeholder="把好友发来的应答码粘贴到这里..." class="flex-1 p-2.5 rounded-xl border-2 border-slate-800 bg-white text-xs font-mono resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                    <button id="btnAcceptAnswer" class="comic-btn px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs sm:text-sm font-extrabold flex items-center justify-center gap-1.5 shrink-0">
+                      <i data-lucide="link" class="w-4 h-4"></i>
+                      <span>拉入房间</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- JOIN PANEL -->
+            <div id="panelJoin" class="hidden space-y-3.5 pt-1">
+              <!-- Quick 6-Digit Room Code Join -->
+              <div class="p-3.5 rounded-xl border-2 border-blue-600 bg-blue-50/50 space-y-2.5">
+                <div class="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
+                  <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i>
+                  <span>极速加入：输入 6 位房间号直接进房</span>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input id="inputJoinRoomCode" type="text" inputmode="numeric" maxlength="6" placeholder="输入 6 位房号，如 839241" class="w-full sm:flex-1 min-w-0 px-3 py-2 rounded-xl border-2 border-slate-800 bg-white font-mono text-base font-extrabold tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <button id="btnJoinQuickRoom" class="comic-btn w-full sm:w-auto px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-extrabold flex items-center justify-center gap-1.5 shrink-0">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    <span>加入房间</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Guest Waiting Status (Shared by Quick Join & Manual Join) -->
+              <div id="guestWaitingStatus" class="hidden p-3 rounded-xl bg-emerald-50 border-2 border-emerald-300 space-y-2">
+                <div class="flex items-center gap-2 text-xs font-extrabold text-emerald-900">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  <span id="guestWaitText">等待房主开启游戏...</span>
+                </div>
+                <div id="guestLobbyRoster" class="flex flex-wrap gap-1.5"></div>
+              </div>
+
+              <!-- Collapsible Manual Fallback -->
+              <details class="rounded-xl border-2 border-slate-200 bg-slate-50/70 p-3">
+                <summary class="text-xs font-extrabold text-slate-600 cursor-pointer select-none">备用方式：手动粘贴邀请码 / 生成应答码（离线预览环境可用）</summary>
+                <div class="space-y-3 pt-3">
+                  <div class="space-y-1.5">
+                    <span class="text-xs font-extrabold text-slate-800">1. 粘贴房主发给你的「手动邀请码」</span>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                      <textarea id="textareaJoinOfferInput" rows="2" placeholder="把房主发来的邀请码粘贴到这里..." class="flex-1 p-2.5 rounded-xl border-2 border-slate-800 bg-white text-xs font-mono resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                      <button id="btnGenerateAnswer" class="comic-btn px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shrink-0">
+                        <i data-lucide="key-round" class="w-4 h-4"></i>
+                        <span>生成应答码</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="joinAnswerBox" class="hidden space-y-1.5">
+                    <span class="text-xs font-extrabold text-slate-800">2. 复制下方「应答码」发回给房主</span>
+                    <div class="relative">
+                      <textarea id="textareaJoinAnswer" readonly rows="2" class="w-full p-2.5 pr-24 rounded-xl border-2 border-slate-800 bg-emerald-50 text-xs font-mono text-slate-700 resize-none focus:outline-none"></textarea>
+                      <button id="btnCopyAnswer" class="comic-btn absolute top-2 right-2 px-3 py-1.5 rounded-lg bg-emerald-400 text-slate-900 text-xs font-extrabold flex items-center gap-1">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        <span>复制</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <!-- 3-Step P2P Mini Guide -->
+          <div class="mt-5 pt-4 border-t-2 border-dashed border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            <div class="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200">
+              <div class="font-extrabold text-blue-900">① 6 位房号秒进</div>
+              <div class="text-slate-600 mt-0.5">部署到公网后点链接或输房号即连，免复制</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200">
+              <div class="font-extrabold text-amber-900">② 房主随时调控</div>
+              <div class="text-slate-600 mt-0.5">支持 2~8 人、改局数/词库与踢人管理</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+              <div class="font-extrabold text-emerald-900">③ 全自动切回合</div>
+              <div class="text-slate-600 mt-0.5">每轮结算 4 秒后自动开下一轮，无需催房主</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode 2 & 3: Local 2P + Solo Practice + Custom Words -->
+        <div class="space-y-5 flex flex-col">
+          <!-- Local 2P / Solo -->
+          <div class="comic-card p-5 bg-white space-y-3.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-10 h-10 rounded-xl bg-rose-500 text-white border-2 border-slate-800 flex items-center justify-center shrink-0">
+                <i data-lucide="users" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-extrabold text-slate-900">立即开玩（本地 / 试玩）</h3>
+                <p class="text-xs text-slate-500">无需等待，现在就能体验完整对局</p>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <label for="inputBroName" class="block text-xs font-bold text-slate-600">本地双人 · 兄弟昵称</label>
+              <input id="inputBroName" type="text" maxlength="12" value="好兄弟" class="w-full px-3 py-1.5 rounded-lg border-2 border-slate-800 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 pt-1">
+              <button id="btnStartLocal2P" class="comic-btn w-full py-2.5 px-4 rounded-xl bg-rose-500 text-white text-sm font-extrabold flex items-center justify-center gap-2">
+                <i data-lucide="play" class="w-4 h-4"></i>
+                <span>同屏双人轮流开玩</span>
+              </button>
+              <button id="btnStartSolo" class="comic-btn w-full py-2.5 px-4 rounded-xl bg-amber-300 text-slate-900 text-sm font-extrabold flex items-center justify-center gap-2">
+                <i data-lucide="brush" class="w-4 h-4"></i>
+                <span>单人自由画板 / 抽题热身</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom Word Bank -->
+          <div class="comic-card p-5 bg-white space-y-3 flex-1">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="bookmark-plus" class="w-4 h-4 text-amber-600"></i>
+                <h3 class="text-sm font-extrabold text-slate-900">兄弟专属自定义词库</h3>
+              </div>
+              <span id="customWordCount" class="text-xs font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">0 词</span>
+            </div>
+            <div class="flex gap-2">
+              <input id="inputCustomWord" type="text" maxlength="14" placeholder="添加专属梗词，如：宿舍空调" class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border-2 border-slate-800 text-xs font-bold focus:outline-none" />
+              <button id="btnAddCustomWord" class="comic-btn px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-extrabold">添加</button>
+            </div>
+            <div id="customWordList" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scroll"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= GAME VIEW ================= -->
+    <section id="gameView" class="hidden space-y-4">
+      <!-- Top Game Status Bar -->
+      <div class="comic-card-sm px-3 sm:px-4 py-2.5 bg-white flex flex-wrap items-center justify-between gap-2.5">
+        <div class="flex items-center gap-2">
+          <span id="badgeRound" class="px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-extrabold">第 1 / 6 回合</span>
+          <span id="badgeRole" class="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 border border-blue-300 text-xs font-extrabold">你来画</span>
+        </div>
+
+        <div class="flex items-center gap-2 bg-amber-50 border-2 border-slate-800 rounded-xl px-3 py-1.5">
+          <span id="wordLabel" class="text-xs font-bold text-slate-500">题目:</span>
+          <span id="wordDisplay" class="text-sm sm:text-lg font-extrabold tracking-widest text-slate-900">准备中...</span>
+          <span id="wordCategoryBadge" class="hidden sm:inline-block text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-200 text-amber-900"></span>
+          <button id="btnRevealHint" class="hidden comic-btn ml-1 px-2 py-0.5 rounded-md bg-white text-[11px] font-extrabold text-blue-700" title="给猜词者透漏一个字">提示+1</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div id="timerBox" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border-2 border-slate-800 bg-slate-50 font-extrabold text-xs sm:text-sm tabular-nums">
+            <i data-lucide="clock" class="w-4 h-4"></i>
+            <span id="timerText">80s</span>
+          </div>
+          <button id="btnSoloNextWord" class="hidden comic-btn px-3 py-1 rounded-xl bg-amber-300 text-slate-900 text-xs font-extrabold">换一题</button>
+          <button id="btnSkipRound" class="comic-btn px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold" title="跳过当前回合">跳过</button>
+        </div>
+      </div>
+
+      <!-- Main Game Workspace -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+
+        <!-- Left / Center: Canvas & Tools -->
+        <div class="lg:col-span-8 space-y-3">
+          <div class="canvas-wrap" id="canvasWrap">
+            <canvas id="drawCanvas"></canvas>
+            <div id="reactionsLayer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+          </div>
+
+          <!-- Drawing Toolbar -->
+          <div id="drawingToolbar" class="comic-card-sm p-3 bg-white space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div id="colorPalette" class="flex flex-wrap items-center gap-1.5"></div>
+              <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-300">
+                <button data-size="3" class="size-btn w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white transition" title="细笔">
+                  <span class="w-1.5 h-1.5 rounded-full bg-slate-900"></span>
+                </button>
+                <button data-size="7" class="size-btn w-7 h-7 rounded-lg flex items-center justify-center bg-white shadow-sm transition" title="标准笔">
+                  <span class="w-2.5 h-2.5 rounded-full bg-slate-900"></span>
+                </button>
+                <button data-size="14" class="size-btn w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white transition" title="粗笔">
+                  <span class="w-3.5 h-3.5 rounded-full bg-slate-900"></span>
+                </button>
+                <button data-size="26" class="size-btn w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white transition" title="特粗笔">
+                  <span class="w-5 h-5 rounded-full bg-slate-900"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button id="toolPen" class="tool-btn active px-2.5 py-1.5 text-xs font-extrabold flex items-center gap-1.5">
+                  <i data-lucide="pen-tool" class="w-3.5 h-3.5"></i>
+                  <span>画笔</span>
+                </button>
+                <button id="toolMarker" class="tool-btn px-2.5 py-1.5 text-xs font-extrabold flex items-center gap-1.5">
+                  <i data-lucide="highlighter" class="w-3.5 h-3.5"></i>
+                  <span>荧光笔</span>
+                </button>
+                <button id="toolFill" class="tool-btn px-2.5 py-1.5 text-xs font-extrabold flex items-center gap-1.5">
+                  <i data-lucide="paint-bucket" class="w-3.5 h-3.5"></i>
+                  <span>油漆桶</span>
+                </button>
+                <button id="toolEraser" class="tool-btn px-2.5 py-1.5 text-xs font-extrabold flex items-center gap-1.5">
+                  <i data-lucide="eraser" class="w-3.5 h-3.5"></i>
+                  <span>橡皮</span>
+                </button>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <button id="btnUndo" class="comic-btn px-2.5 py-1.5 rounded-lg bg-white text-xs font-extrabold flex items-center gap-1">
+                  <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+                  <span>撤销</span>
+                </button>
+                <button id="btnClear" class="comic-btn px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-extrabold flex items-center gap-1">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  <span>清空</span>
+                </button>
+                <button id="btnDownloadArt" class="comic-btn px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-extrabold flex items-center gap-1" title="保存当前画作">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                  <span class="hidden sm:inline">存图</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reactions Bar -->
+          <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+            <span class="text-xs font-bold text-slate-500">弹幕互动：</span>
+            <div class="flex flex-wrap gap-1.5">
+              <button data-react="😂 灵魂画作" class="react-btn comic-btn px-2.5 py-1 rounded-full bg-white text-xs font-bold">😂 灵魂画作</button>
+              <button data-react="🔥 画得太像" class="react-btn comic-btn px-2.5 py-1 rounded-full bg-white text-xs font-bold">🔥 画得太像</button>
+              <button data-react="❓ 这画的啥" class="react-btn comic-btn px-2.5 py-1 rounded-full bg-white text-xs font-bold">❓ 这画的啥</button>
+              <button data-react="👏 佩服佩服" class="react-btn comic-btn px-2.5 py-1 rounded-full bg-white text-xs font-bold">👏 佩服佩服</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Sidebar: On mobile, Chat sits right under Canvas & input is pinned at bottom; on desktop, Scoreboard top + Chat bottom -->
+        <div class="lg:col-span-4 gap-3 flex flex-col-reverse lg:flex-col">
+          <!-- Players Scoreboard -->
+          <div class="comic-card-sm p-3.5 bg-white space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <i data-lucide="trophy" class="w-3.5 h-3.5 text-amber-500"></i>
+                <span>玩家积分榜</span>
+              </h3>
+              <span id="modeBadgeSmall" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">本地双人</span>
+            </div>
+            <div id="playersList" class="space-y-2 max-h-56 overflow-y-auto custom-scroll"></div>
+          </div>
+
+          <!-- Chat & Guess Panel -->
+          <div class="comic-card-sm bg-white flex flex-col h-[175px] sm:h-[240px] lg:h-[430px] overflow-hidden">
+            <div class="px-3.5 py-2 border-b-2 border-slate-100 flex items-center justify-between bg-slate-50">
+              <span class="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
+                <i data-lucide="message-square" class="w-3.5 h-3.5 text-blue-600"></i>
+                <span>猜词 & 聊天区</span>
+              </span>
+              <span id="chatHintTag" class="text-[11px] font-bold text-slate-400">输入答案回车</span>
+            </div>
+
+            <div id="chatMessages" class="flex-1 p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 overflow-y-auto custom-scroll text-sm"></div>
+
+            <!-- Pinned at bottom on mobile so players can watch the canvas and type guesses at the same time -->
+            <form id="chatForm" class="fixed bottom-0 left-0 right-0 z-30 lg:static p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] lg:p-2.5 border-t-2 border-slate-800 lg:border-slate-100 bg-[#fffdf8]/95 lg:bg-slate-50 backdrop-blur lg:backdrop-blur-none shadow-[0_-4px_14px_rgba(15,23,42,0.12)] lg:shadow-none flex gap-2">
+              <input id="chatInput" type="text" autocomplete="off" placeholder="输入你猜的词或发消息..." class="flex-1 min-w-0 px-3 py-2 rounded-xl border-2 border-slate-800 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <button type="submit" id="btnSendGuess" class="comic-btn px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-extrabold shrink-0">发送</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= GAME OVER / GALLERY VIEW ================= -->
+    <section id="summaryView" class="hidden space-y-6">
+      <div class="comic-card p-6 sm:p-8 bg-gradient-to-br from-amber-50 via-white to-emerald-50 text-center space-y-5">
+        <div class="text-5xl">🏆</div>
+        <div class="space-y-1">
+          <h2 id="summaryWinnerTitle" class="text-2xl sm:text-3xl font-extrabold text-slate-900">对局结束！</h2>
+          <p id="summarySubtitle" class="text-sm text-slate-600 font-medium">精彩的灵魂对决，看看你们创造了哪些名画吧</p>
+        </div>
+
+        <div id="summaryScores" class="flex flex-wrap justify-center gap-3 pt-2"></div>
+
+        <div class="flex flex-wrap justify-center gap-3 pt-2">
+          <button id="btnRematch" class="comic-btn px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-extrabold flex items-center gap-2">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            <span>再来一局</span>
+          </button>
+          <button id="btnSummaryLobby" class="comic-btn px-6 py-2.5 rounded-xl bg-white text-slate-900 text-sm font-extrabold flex items-center gap-2">
+            <i data-lucide="home" class="w-4 h-4"></i>
+            <span>返回大厅</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+            <i data-lucide="image" class="w-5 h-5 text-rose-500"></i>
+            <span>本局灵魂画廊</span>
+          </h3>
+          <span class="text-xs text-slate-500 font-bold">点击每张画作右下角可保存高清 PNG</span>
+        </div>
+        <div id="galleryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= FIXED GAME MODALS (NEVER CLIPPED ON MOBILE) ================= -->
+  <!-- Word Choice Overlay -->
+  <div id="overlayWordChoice" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="comic-card p-4 sm:p-6 max-w-md w-full bg-white text-center space-y-3 sm:space-y-4 my-auto">
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-200 border border-slate-800 text-xs font-extrabold">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        <span id="wordChoiceTitle">轮到你画了！选一个题目</span>
+      </div>
+      <div id="wordChoiceButtons" class="grid grid-cols-1 gap-2 sm:gap-2.5"></div>
+      <p class="text-xs text-slate-500 font-medium">
+        <span id="wordChoiceCountdown">12</span> 秒后自动随机选题
+      </p>
+    </div>
+  </div>
+
+  <!-- Waiting Overlay -->
+  <div id="overlayWaiting" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="comic-card p-5 sm:p-6 max-w-sm w-full bg-white text-center space-y-3">
+      <div class="w-11 h-11 mx-auto rounded-2xl bg-blue-100 border-2 border-slate-800 flex items-center justify-center animate-bounce">
+        <i data-lucide="pencil-ruler" class="w-5 h-5 text-blue-600"></i>
+      </div>
+      <h3 id="waitingTitle" class="text-base sm:text-lg font-extrabold text-slate-900">画手正在选词...</h3>
+      <p class="text-xs text-slate-500">准备好你的大脑和打字手速！</p>
+    </div>
+  </div>
+
+  <!-- Privacy Shield (Local 2P) -->
+  <div id="overlayPrivacy" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="comic-card p-5 sm:p-6 max-w-md w-full bg-white text-center space-y-4">
+      <div class="w-12 h-12 mx-auto rounded-2xl bg-rose-100 border-2 border-slate-800 flex items-center justify-center">
+        <i data-lucide="eye-off" class="w-6 h-6 text-rose-600"></i>
+      </div>
+      <h3 id="privacyTitle" class="text-base sm:text-lg font-extrabold text-slate-900">防偷看模式</h3>
+      <p id="privacyDesc" class="text-sm text-slate-600">请把屏幕交给画手，猜词者暂时别看屏幕哦！</p>
+      <button id="btnPrivacyReady" class="comic-btn w-full py-2.5 rounded-xl bg-rose-500 text-white font-extrabold text-sm">
+        我是画手，点击查看题目
+      </button>
+    </div>
+  </div>
+
+  <!-- Round Result Overlay (Auto-advances in 4s!) -->
+  <div id="overlayRoundResult" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="comic-card p-5 sm:p-6 max-w-md w-full bg-white text-center space-y-3.5 my-auto">
+      <div id="roundResultIcon" class="text-4xl">🎉</div>
+      <h3 id="roundResultTitle" class="text-lg sm:text-xl font-extrabold text-slate-900">回合结束！</h3>
+      <div class="bg-amber-50 border-2 border-slate-800 rounded-xl p-3">
+        <div class="text-xs font-bold text-slate-500">本轮答案</div>
+        <div id="roundResultWord" class="text-2xl font-extrabold text-slate-900 mt-0.5">珍珠奶茶</div>
+      </div>
+      <p id="roundResultPoints" class="text-xs sm:text-sm font-bold text-emerald-700"></p>
+      <div id="autoNextBanner" class="py-2 px-3 rounded-xl bg-blue-50 border border-blue-200 text-xs font-extrabold text-blue-700">
+        4 秒后自动进入下一回合...
+      </div>
+      <button id="btnNextRound" class="comic-btn w-full py-2 rounded-xl bg-slate-900 text-white font-extrabold text-xs">
+        立即跳过等待
+      </button>
+    </div>
+  </div>
+
+  <!-- HOST ROOM SETTINGS & KICK MODAL -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-[60] bg-slate-900/65 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="comic-card p-5 sm:p-6 max-w-lg w-full bg-white space-y-4 my-auto max-h-[88vh] overflow-y-auto custom-scroll">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="settings" class="w-5 h-5 text-amber-600"></i>
+          <span>房主设置 & 成员管理</span>
+        </h3>
+        <button id="btnCloseSettings" class="p-1 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Adjustable Room Settings (Custom Numbers + Rules) -->
+      <div class="bg-slate-50 p-3.5 rounded-xl border-2 border-slate-200 space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="modalMaxPlayers" class="block text-xs font-bold text-slate-600 mb-1">人数上限 (2~20)</label>
+            <input id="modalMaxPlayers" type="number" min="2" max="20" value="4" class="w-full px-2.5 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-sm font-extrabold" />
+          </div>
+          <div>
+            <label for="modalRounds" class="block text-xs font-bold text-slate-600 mb-1">总回合数 (1~50)</label>
+            <input id="modalRounds" type="number" min="1" max="50" value="6" class="w-full px-2.5 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-sm font-extrabold" />
+          </div>
+          <div>
+            <label for="modalTime" class="block text-xs font-bold text-slate-600 mb-1">每轮限时秒 (15~300)</label>
+            <input id="modalTime" type="number" min="15" max="300" step="5" value="80" class="w-full px-2.5 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-sm font-extrabold" />
+          </div>
+          <div>
+            <label for="modalCategory" class="block text-xs font-bold text-slate-600 mb-1">词库主题</label>
+            <select id="modalCategory" class="w-full px-2 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-sm font-bold">
+              <option value="all">🎲 全部混合</option>
+              <option value="daily">🧋 美食日常</option>
+              <option value="animal">🐼 动物世界</option>
+              <option value="meme">🔥 热梗动作</option>
+              <option value="idiom">📜 成语脑洞</option>
+              <option value="custom">⭐ 仅自定义</option>
+            </select>
+          </div>
+          <div>
+            <label for="modalChoiceCount" class="block text-xs font-bold text-slate-600 mb-1">画手候选词数</label>
+            <select id="modalChoiceCount" class="w-full px-2 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-sm font-bold">
+              <option value="2">2 选 1</option>
+              <option value="3">3 选 1</option>
+              <option value="4">4 选 1</option>
+              <option value="5">5 选 1</option>
+            </select>
+          </div>
+          <div>
+            <label for="modalAutoNextDelay" class="block text-xs font-bold text-slate-600 mb-1">切轮倒计时 (2~15秒)</label>
+            <input id="modalAutoNextDelay" type="number" min="2" max="15" value="4" class="w-full px-2.5 py-1.5 rounded-lg border-2 border-slate-800 bg-white text-sm font-extrabold" />
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3 pt-1 text-xs font-bold text-slate-700">
+          <label class="inline-flex items-center gap-1.5 cursor-pointer">
+            <input id="modalChkAutoHint" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
+            <span>过半自动线索</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5 cursor-pointer">
+            <input id="modalChkCloseGuess" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
+            <span>近似字提示</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5 cursor-pointer">
+            <input id="modalChkAllowSkip" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
+            <span>允许跳过回合</span>
+          </label>
+        </div>
+      </div>
+
+      <button id="btnApplySettings" class="comic-btn w-full py-2 rounded-xl bg-blue-600 text-white text-xs sm:text-sm font-extrabold">
+        保存并同步设置给所有玩家
+      </button>
+
+      <!-- Member Kick List -->
+      <div class="space-y-2 pt-2 border-t-2 border-slate-100">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold text-slate-700">房间成员管理（支持踢人）</span>
+          <span id="modalMemberSummary" class="text-xs font-bold text-slate-500">1 / 4 人</span>
+        </div>
+        <div id="modalPlayerManageList" class="space-y-2 max-h-48 overflow-y-auto custom-scroll"></div>
+      </div>
+
+      <!-- Mid-game quick invite -->
+      <div class="space-y-2 pt-2 border-t-2 border-slate-100">
+        <div id="modalQuickRoomRow" class="hidden p-2.5 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-between gap-2">
+          <div class="text-xs font-extrabold text-blue-900">当前房间号：<span id="modalRoomCodeText" class="font-mono text-sm tracking-widest">------</span></div>
+          <button id="btnModalCopyRoomLink" class="comic-btn px-2.5 py-1 rounded-lg bg-emerald-400 text-slate-900 text-[11px] font-extrabold">复制邀请链接</button>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold text-slate-700">中途拉新好友进房（备用手动码）</span>
+          <button id="btnModalCreateOffer" class="comic-btn px-3 py-1 rounded-lg bg-amber-300 text-slate-900 text-xs font-extrabold">生成手动邀请码</button>
+        </div>
+        <div id="modalInviteArea" class="hidden space-y-2">
+          <div class="relative">
+            <textarea id="modalOfferText" readonly rows="2" class="w-full p-2 pr-20 rounded-lg border-2 border-slate-800 bg-amber-50 text-[11px] font-mono resize-none"></textarea>
+            <button id="btnModalCopyOffer" class="comic-btn absolute top-1.5 right-1.5 px-2.5 py-1 rounded-md bg-amber-300 text-[11px] font-extrabold">复制</button>
+          </div>
+          <div class="flex gap-2">
+            <textarea id="modalAnswerInput" rows="2" placeholder="粘贴好友应答码..." class="flex-1 p-2 rounded-lg border-2 border-slate-800 text-[11px] font-mono resize-none"></textarea>
+            <button id="btnModalAcceptAnswer" class="comic-btn px-3 py-1 rounded-lg bg-emerald-500 text-white text-xs font-extrabold shrink-0">拉入</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RULES MODAL -->
+  <div id="rulesModal" class="hidden fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="comic-card p-6 max-w-lg w-full bg-white space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="book-open" class="w-5 h-5 text-blue-600"></i>
+          <span>多人在线联机 & 玩法指南</span>
+        </h3>
+        <button id="btnCloseRules" class="p-1 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-sm text-slate-700 leading-relaxed">
+        <div class="p-3 rounded-xl bg-blue-50 border border-blue-200 space-y-1">
+          <div class="font-extrabold text-blue-900">1. 如何开启多人（2~8人）P2P 联机？</div>
+          <ol class="list-decimal list-inside text-xs text-blue-900 space-y-1 pt-1 font-medium">
+            <li><strong>房主</strong>选好人数上限、局数与词库，点「邀请一位好友」生成邀请码发给第 1 位兄弟。</li>
+            <li><strong>兄弟</strong>切到「加入房间」粘贴邀请码，点「生成应答码」发回给房主。</li>
+            <li><strong>房主</strong>粘贴应答码点「拉入房间」。如果要 3~8 人一起玩，重复点「邀请一位好友」依次拉人即可！</li>
+            <li>人齐后房主点「开始联机游戏」开局，后续每回合结算后 <strong>4 秒自动进入下一回合</strong>，无需等待房主点击。</li>
+          </ol>
+        </div>
+
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-1">
+          <div class="font-extrabold text-amber-900">2. 房主权限与多人计分</div>
+          <p class="text-xs text-amber-800">房主在局内右上角可随时打开「房间设置」，修改人数上限、局数、限时、词库、中途拉人或踢出离线/捣乱玩家。多人模式下，第一个猜中的玩家额外 +15 分，所有猜词者都猜中或倒计时结束即自动结算本轮。</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 space-y-1">
+          <div class="font-extrabold text-rose-900">3. 本地双人 & 自定义梗词</div>
+          <p class="text-xs text-rose-800">如果两人在同一台设备旁，可直接玩「同屏双人轮流」；在大厅右下角还能添加你们的专属梗词！</p>
+        </div>
+      </div>
+
+      <button id="btnCloseRulesBottom" class="comic-btn w-full py-2 rounded-xl bg-slate-900 text-white text-sm font-extrabold">知道了，去开玩</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // ================= WORD BANK =================
+      const WORD_BANK = [
+        { w: '珍珠奶茶', c: 'daily', h: '饮品，有Q弹小黑球' },
+        { w: '臭豆腐', c: 'daily', h: '闻着臭吃着香的小吃' },
+        { w: '火锅', c: 'daily', h: '冬天聚餐最爱，涮肉' },
+        { w: '方便面', c: 'daily', h: '熬夜神器，热水泡三分钟' },
+        { w: '电风扇', c: 'daily', h: '夏天吹风的家电' },
+        { w: '仙人掌', c: 'daily', h: '全身长刺的沙漠植物' },
+        { w: '吹风机', c: 'daily', h: '洗完头用来吹干的工具' },
+        { w: '冰淇淋', c: 'daily', h: '冰冰凉凉的甜品' },
+        { w: '雨伞', c: 'daily', h: '下雨天出门必备' },
+        { w: '薯条', c: 'daily', h: '快餐店配番茄酱吃' },
+        { w: '闹钟', c: 'daily', h: '早上把你吵醒的东西' },
+        { w: '牙刷', c: 'daily', h: '每天早晚放嘴里的物品' },
+        { w: '拖鞋', c: 'daily', h: '在家穿的鞋子' },
+        { w: '西瓜', c: 'daily', h: '绿皮红瓤的夏天水果' },
+        { w: '汉堡', c: 'daily', h: '两片面包夹肉饼' },
+        { w: '剪刀', c: 'daily', h: '用来剪纸的工具' },
+        { w: '创可贴', c: 'daily', h: '手指划破时贴的' },
+        { w: '保温杯', c: 'daily', h: '装热水，养生必备' },
+        { w: '充电宝', c: 'daily', h: '手机没电时的救星' },
+        { w: '行李箱', c: 'daily', h: '出远门拖着走的箱子' },
+        { w: '耳机', c: 'daily', h: '戴在头上或耳朵里听歌' },
+        { w: '烤串', c: 'daily', h: '夜宵摊竹签穿起来的肉' },
+        { w: '马桶', c: 'daily', h: '卫生间里的白色大件' },
+        { w: '微波炉', c: 'daily', h: '叮一下热饭的家电' },
+        { w: '红绿灯', c: 'daily', h: '十字路口指挥交通' },
+        { w: '自行车', c: 'daily', h: '两个轮子用脚蹬' },
+        { w: '摩天轮', c: 'daily', h: '游乐园里巨大转圈的设施' },
+        { w: '热气球', c: 'daily', h: '靠热空气飞上天的球' },
+        { w: '望远镜', c: 'daily', h: '用来看很远的东西' },
+        { w: '灭火器', c: 'daily', h: '红色瓶子，起火时用' },
+        { w: '糖葫芦', c: 'daily', h: '一串裹着糖衣的山楂' },
+        { w: '小笼包', c: 'daily', h: '皮薄馅大带汤汁的包子' },
+        { w: '榴莲', c: 'daily', h: '全身带刺味道很冲的水果' },
+        { w: '键盘', c: 'daily', h: '打字打游戏都要敲它' },
+        { w: '太阳镜', c: 'daily', h: '戴上很酷，遮阳光' },
+        { w: '吉他', c: 'daily', h: '六根弦的弹拨乐器' },
+        { w: '哑铃', c: 'daily', h: '健身房用来练手臂的铁块' },
+        { w: '帐篷', c: 'daily', h: '野外露营睡觉的地方' },
+        { w: '风筝', c: 'daily', h: '春天牵着线放上天' },
+        { w: '雪人', c: 'daily', h: '下雪天堆出来的白色人偶' },
+        { w: '大熊猫', c: 'animal', h: '黑白配色国宝，爱吃竹子' },
+        { w: '长颈鹿', c: 'animal', h: '脖子超级长的动物' },
+        { w: '企鹅', c: 'animal', h: '南极穿燕尾服的胖鸟' },
+        { w: '变色龙', c: 'animal', h: '会根据环境变颜色的蜥蜴' },
+        { w: '河豚', c: 'animal', h: '一生气就会鼓成刺球的鱼' },
+        { w: '袋鼠', c: 'animal', h: '肚子上有育儿袋，很会跳' },
+        { w: '章鱼', c: 'animal', h: '海里八条腿还会喷墨' },
+        { w: '火烈鸟', c: 'animal', h: '粉红色细长腿，常单脚站' },
+        { w: '刺猬', c: 'animal', h: '缩成一团全身是刺的小动物' },
+        { w: '霸王龙', c: 'animal', h: '手很短嘴很大的远古恐龙' },
+        { w: '柯基犬', c: 'animal', h: '腿短短屁股圆圆的狗狗' },
+        { w: '猫头鹰', c: 'animal', h: '晚上不睡觉的大眼鸟' },
+        { w: '海马', c: 'animal', h: '名字带马但活在水里' },
+        { w: '孔雀', c: 'animal', h: '尾巴能像扇子一样打开' },
+        { w: '螃蟹', c: 'animal', h: '横着走，有两个大钳子' },
+        { w: '蜗牛', c: 'animal', h: '背着房子慢慢爬' },
+        { w: '大象', c: 'animal', h: '长鼻子大耳朵，陆地最大' },
+        { w: '树懒', c: 'animal', h: '挂在树上动作超级慢' },
+        { w: '水母', c: 'animal', h: '海里透明像雨伞一样飘' },
+        { w: '蝙蝠', c: 'animal', h: '晚上倒挂在山洞里会飞' },
+        { w: '骆驼', c: 'animal', h: '沙漠之舟，背上有驼峰' },
+        { w: '鳄鱼', c: 'animal', h: '水里潜伏，满嘴尖牙' },
+        { w: '青蛙', c: 'animal', h: '呱呱叫，爱吃害虫' },
+        { w: '松鼠', c: 'animal', h: '大尾巴爱抱松果' },
+        { w: '独角兽', c: 'animal', h: '传说中额头长角的白马' },
+        { w: '啄木鸟', c: 'animal', h: '森林医生，用嘴敲树干' },
+        { w: '斑马', c: 'animal', h: '身上长满黑白条纹' },
+        { w: '鲨鱼', c: 'animal', h: '海洋霸主，背鳍露出水面' },
+        { w: '蝴蝶', c: 'animal', h: '毛毛虫变出来的花翅膀昆虫' },
+        { w: '公鸡', c: 'animal', h: '早上喔喔叫着打鸣' },
+        { w: '摸鱼', c: 'meme', h: '上班或上课时偷偷偷懒' },
+        { w: '躺平', c: 'meme', h: '不想努力了，直接躺下' },
+        { w: '吃瓜', c: 'meme', h: '围观八卦看热闹' },
+        { w: '熬夜', c: 'meme', h: '凌晨三点还不睡觉玩手机' },
+        { w: '广场舞', c: 'meme', h: '大爷大妈傍晚在空地跳舞' },
+        { w: '打羽毛球', c: 'meme', h: '拿拍子隔网打带毛的球' },
+        { w: '自拍', c: 'meme', h: '举起手机对着自己拍照' },
+        { w: '潜水', c: 'meme', h: '戴着氧气瓶沉到海底' },
+        { w: '滑雪', c: 'meme', h: '踩着板子从雪山冲下来' },
+        { w: '举重', c: 'meme', h: '把沉重的杠铃举过头顶' },
+        { w: '拔河', c: 'meme', h: '两队人拉一根大绳子较劲' },
+        { w: '魔术师', c: 'meme', h: '戴高帽从帽子里变出兔子' },
+        { w: '宇航员', c: 'meme', h: '穿着白色太空服在月球走' },
+        { w: '外卖小哥', c: 'meme', h: '骑电动车戴头盔送餐的人' },
+        { w: '程序员', c: 'meme', h: '对着电脑写代码，常穿格子衫' },
+        { w: '蹦极', c: 'meme', h: '脚绑绳子从高空往下跳' },
+        { w: '划船', c: 'meme', h: '拿船桨在水面上前进' },
+        { w: '钓鱼', c: 'meme', h: '坐在河边拿杆子等鱼上钩' },
+        { w: '放烟花', c: 'meme', h: '过年晚上在天空中炸开彩色火花' },
+        { w: '打太极', c: 'meme', h: '动作缓慢行云流水的中国功夫' },
+        { w: '烤红薯', c: 'meme', h: '冬天大铁桶里香喷喷的番薯' },
+        { w: '堆雪人', c: 'meme', h: '冬天滚两个大雪球叠一起' },
+        { w: '跳绳', c: 'meme', h: '甩起绳子双脚往上跳' },
+        { w: '踢足球', c: 'meme', h: '在绿茵场上用脚把球踢进球门' },
+        { w: '打篮球', c: 'meme', h: '拍球起跳把球投进篮筐' },
+        { w: '看电影', c: 'meme', h: '拿着爆米花坐黑屋子看大屏幕' },
+        { w: '理发', c: 'meme', h: '坐椅子上披围布剪头发' },
+        { w: '抓娃娃', c: 'meme', h: '投币操控铁爪子夹公仔' },
+        { w: '打呼噜', c: 'meme', h: '睡觉时发出雷鸣般的声音' },
+        { w: '骑摩托', c: 'meme', h: '戴头盔拧油门轰轰跑' },
+        { w: '画蛇添足', c: 'idiom', h: '给画好的蛇多加了几条腿' },
+        { w: '守株待兔', c: 'idiom', h: '坐在树桩旁等兔子撞上来' },
+        { w: '对牛弹琴', c: 'idiom', h: '对着一头牛演奏乐器' },
+        { w: '井底之蛙', c: 'idiom', h: '水井下面仰望天空的青蛙' },
+        { w: '狐假虎威', c: 'idiom', h: '狐狸走在老虎前面耀武扬威' },
+        { w: '亡羊补牢', c: 'idiom', h: '羊跑了之后赶紧修补围栏' },
+        { w: '盲人摸象', c: 'idiom', h: '蒙着眼睛摸大象不同部位' },
+        { w: '掩耳盗铃', c: 'idiom', h: '捂住自己耳朵去偷铃铛' },
+        { w: '鸡飞狗跳', c: 'idiom', h: '鸡在天上飞，狗在地上跳' },
+        { w: '火上浇油', c: 'idiom', h: '往着火的地方倒油' },
+        { w: '刻舟求剑', c: 'idiom', h: '剑掉水里了却在船边刻记号' },
+        { w: '杯弓蛇影', c: 'idiom', h: '酒杯里映出弓的影子像条蛇' },
+        { w: '一箭双雕', c: 'idiom', h: '射出一支箭同时穿了两只大鸟' },
+        { w: '画饼充饥', c: 'idiom', h: '肚子饿了在纸上画个大饼看' },
+        { w: '叶公好龙', c: 'idiom', h: '真龙探头进来吓得腿软' },
+        { w: '愚公移山', c: 'idiom', h: '拿着锄头要把家门口的大山挖走' },
+        { w: '指鹿为马', c: 'idiom', h: '指着一只鹿硬说它是马' },
+        { w: '雪中送炭', c: 'idiom', h: '大雪天给人送来温暖的木炭' },
+        { w: '锦上添花', c: 'idiom', h: '漂亮布料上再加几朵花' },
+        { w: '水中捞月', c: 'idiom', h: '猴子伸手去水里捞月亮倒影' },
+        { w: '拔苗助长', c: 'idiom', h: '把禾苗往上拔想让它长得快' },
+        { w: '鹤立鸡群', c: 'idiom', h: '一群小鸡里站着一只高大白鹤' },
+        { w: '蜻蜓点水', c: 'idiom', h: '蜻蜓尾巴轻轻碰一下水面' },
+        { w: '如鱼得水', c: 'idiom', h: '小鱼回到水里特别开心' },
+        { w: '画龙点睛', c: 'idiom', h: '给墙上的龙点上眼珠就飞走了' }
+      ];
+
+      const CATEGORY_NAMES = {
+        all: '综合大乱斗',
+        daily: '美食日常',
+        animal: '动物世界',
+        meme: '热梗动作',
+        idiom: '成语脑洞',
+        custom: '专属词库'
+      };
+
+      const RANDOM_NAMES = [
+        '灵魂画手', '毕加索分索', '抽象派掌门', '达芬奇本奇',
+        '马良神笔', '线条艺术家', '猜词战神', '脑洞大师', '画坛奇才'
+      ];
+
+      const PALETTE = [
+        '#1e293b', '#ef4444', '#f97316', '#f59e0b',
+        '#10b981', '#06b6d4', '#2563eb', '#7c3aed',
+        '#ec4899', '#854d0e', '#94a3b8', '#ffffff'
+      ];
+
+      const AVATAR_COLORS = [
+        'bg-amber-300', 'bg-rose-300', 'bg-sky-300', 'bg-emerald-300',
+        'bg-violet-300', 'bg-orange-300', 'bg-pink-300', 'bg-teal-300'
+      ];
+
+      // ================= AUDIO ENGINE =================
+      const AudioFX = {
+        ctx: null,
+        muted: false,
+        init() {
+          if (!this.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) this.ctx = new AC();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(() => {});
+          }
+        },
+        beep(freq, dur, type = 'sine', vol = 0.12, delay = 0) {
+          if (this.muted) return;
+          this.init();
+          if (!this.ctx) return;
+          try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + delay + dur);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(this.ctx.currentTime + delay);
+            osc.stop(this.ctx.currentTime + delay + dur);
+          } catch (e) {}
+        },
+        correct() {
+          this.beep(523.25, 0.12, 'triangle', 0.16, 0);
+          this.beep(659.25, 0.12, 'triangle', 0.16, 0.1);
+          this.beep(783.99, 0.22, 'triangle', 0.18, 0.2);
+          this.beep(1046.5, 0.3, 'triangle', 0.16, 0.32);
+        },
+        tick() { this.beep(880, 0.05, 'square', 0.05, 0); },
+        pop() { this.beep(420, 0.06, 'sine', 0.08, 0); },
+        fail() {
+          this.beep(300, 0.16, 'sawtooth', 0.08, 0);
+          this.beep(220, 0.28, 'sawtooth', 0.08, 0.16);
+        },
+        fanfare() {
+          [523, 659, 784, 1046].forEach((f, i) => this.beep(f, 0.25, 'triangle', 0.14, i * 0.12));
+        }
+      };
+
+      // ================= STATE =================
+      const state = {
+        mode: 'lobby', // 'lobby' | 'online' | 'local' | 'solo'
+        isHost: true,
+        myId: 'host',
+        myName: '灵魂画手',
+        customWords: [],
+        settings: {
+          maxPlayers: 4,
+          category: 'all',
+          rounds: 6,
+          duration: 80,
+          choiceCount: 3,
+          autoNextDelay: 4,
+          autoHint: true,
+          closeGuessHint: true,
+          allowSkip: true
+        },
+        // Roster: [{ id, name, score, isHost, guessedThisRound }]
+        players: [],
+        // Game state
+        phase: 'idle', // 'idle' | 'choosing' | 'drawing' | 'round_end' | 'summary'
+        currentRound: 1,
+        drawerId: 'host',
+        currentWordObj: null,
+        revealedIndices: [],
+        timeLeft: 80,
+        usedWords: new Set(),
+        gallery: [],
+        guessedCountThisRound: 0,
+        // Timers
+        roundTimerId: null,
+        choiceTimerId: null,
+        autoNextTimerId: null,
+        // Drawing
+        tool: 'pen',
+        color: '#1e293b',
+        size: 7,
+        isDrawing: false,
+        lastPt: null,
+        ops: [],
+        activeStroke: null,
+        // Star-topology WebRTC:
+        // Host holds peers: Map<peerId, { id, pc, dc, connected }>
+        // Guest holds guestPc & guestDc to Host
+        peers: new Map(),
+        pendingInvite: null, // { id, pc, dc, source: 'lobby'|'modal' }
+        guestPc: null,
+        guestDc: null,
+        guestConnected: false,
+        // PeerJS Cloud Quick Room
+        hostPeer: null,
+        guestPeer: null,
+        roomCode: '' 
+      };
+
+      // ================= DOM REFS =================
+      const $ = (id) => document.getElementById(id);
+      const els = {
+        lobbyView: $('lobbyView'),
+        gameView: $('gameView'),
+        summaryView: $('summaryView'),
+        connectionBadge: $('connectionBadge'),
+        connDot: $('connDot'),
+        connText: $('connText'),
+        btnRoomSettings: $('btnRoomSettings'),
+        btnBackLobby: $('btnBackLobby'),
+        btnMute: $('btnMute'),
+        muteIcon: $('muteIcon'),
+        btnRules: $('btnRules'),
+        rulesModal: $('rulesModal'),
+        btnCloseRules: $('btnCloseRules'),
+        btnCloseRulesBottom: $('btnCloseRulesBottom'),
+        inputMyName: $('inputMyName'),
+        btnRandomName: $('btnRandomName'),
+        tabHost: $('tabHost'),
+        tabJoin: $('tabJoin'),
+        panelHost: $('panelHost'),
+        panelJoin: $('panelJoin'),
+        selectMaxPlayers: $('selectMaxPlayers'),
+        selectCategory: $('selectCategory'),
+        selectRounds: $('selectRounds'),
+        selectTime: $('selectTime'),
+        selectChoiceCount: $('selectChoiceCount'),
+        inputAutoNextDelay: $('inputAutoNextDelay'),
+        chkAutoHint: $('chkAutoHint'),
+        chkCloseGuess: $('chkCloseGuess'),
+        chkAllowSkip: $('chkAllowSkip'),
+        lobbyMemberCount: $('lobbyMemberCount'),
+        lobbyRosterList: $('lobbyRosterList'),
+        btnCreateQuickRoom: $('btnCreateQuickRoom'),
+        quickRoomActiveBox: $('quickRoomActiveBox'),
+        displayRoomCode: $('displayRoomCode'),
+        btnCopyRoomCode: $('btnCopyRoomCode'),
+        btnCopyRoomLink: $('btnCopyRoomLink'),
+        inputJoinRoomCode: $('inputJoinRoomCode'),
+        btnJoinQuickRoom: $('btnJoinQuickRoom'),
+        guestWaitingStatus: $('guestWaitingStatus'),
+        modalQuickRoomRow: $('modalQuickRoomRow'),
+        modalRoomCodeText: $('modalRoomCodeText'),
+        btnModalCopyRoomLink: $('btnModalCopyRoomLink'),
+        btnCreateOffer: $('btnCreateOffer'),
+        btnHostStartOnline: $('btnHostStartOnline'),
+        hostOfferBox: $('hostOfferBox'),
+        btnCancelInvite: $('btnCancelInvite'),
+        textareaHostOffer: $('textareaHostOffer'),
+        btnCopyOffer: $('btnCopyOffer'),
+        textareaHostAnswerInput: $('textareaHostAnswerInput'),
+        btnAcceptAnswer: $('btnAcceptAnswer'),
+        textareaJoinOfferInput: $('textareaJoinOfferInput'),
+        btnGenerateAnswer: $('btnGenerateAnswer'),
+        joinAnswerBox: $('joinAnswerBox'),
+        textareaJoinAnswer: $('textareaJoinAnswer'),
+        btnCopyAnswer: $('btnCopyAnswer'),
+        guestWaitText: $('guestWaitText'),
+        guestLobbyRoster: $('guestLobbyRoster'),
+        inputBroName: $('inputBroName'),
+        btnStartLocal2P: $('btnStartLocal2P'),
+        btnStartSolo: $('btnStartSolo'),
+        inputCustomWord: $('inputCustomWord'),
+        btnAddCustomWord: $('btnAddCustomWord'),
+        customWordList: $('customWordList'),
+        customWordCount: $('customWordCount'),
+        // Game UI
+        badgeRound: $('badgeRound'),
+        badgeRole: $('badgeRole'),
+        wordLabel: $('wordLabel'),
+        wordDisplay: $('wordDisplay'),
+        wordCategoryBadge: $('wordCategoryBadge'),
+        btnRevealHint: $('btnRevealHint'),
+        timerBox: $('timerBox'),
+        timerText: $('timerText'),
+        btnSoloNextWord: $('btnSoloNextWord'),
+        btnSkipRound: $('btnSkipRound'),
+        canvasWrap: $('canvasWrap'),
+        canvas: $('drawCanvas'),
+        reactionsLayer: $('reactionsLayer'),
+        overlayWordChoice: $('overlayWordChoice'),
+        wordChoiceTitle: $('wordChoiceTitle'),
+        wordChoiceButtons: $('wordChoiceButtons'),
+        wordChoiceCountdown: $('wordChoiceCountdown'),
+        overlayWaiting: $('overlayWaiting'),
+        waitingTitle: $('waitingTitle'),
+        overlayPrivacy: $('overlayPrivacy'),
+        privacyTitle: $('privacyTitle'),
+        privacyDesc: $('privacyDesc'),
+        btnPrivacyReady: $('btnPrivacyReady'),
+        overlayRoundResult: $('overlayRoundResult'),
+        roundResultIcon: $('roundResultIcon'),
+        roundResultTitle: $('roundResultTitle'),
+        roundResultWord: $('roundResultWord'),
+        roundResultPoints: $('roundResultPoints'),
+        autoNextBanner: $('autoNextBanner'),
+        btnNextRound: $('btnNextRound'),
+        drawingToolbar: $('drawingToolbar'),
+        colorPalette: $('colorPalette'),
+        toolPen: $('toolPen'),
+        toolMarker: $('toolMarker'),
+        toolFill: $('toolFill'),
+        toolEraser: $('toolEraser'),
+        btnUndo: $('btnUndo'),
+        btnClear: $('btnClear'),
+        btnDownloadArt: $('btnDownloadArt'),
+        playersList: $('playersList'),
+        modeBadgeSmall: $('modeBadgeSmall'),
+        chatMessages: $('chatMessages'),
+        chatForm: $('chatForm'),
+        chatInput: $('chatInput'),
+        btnSendGuess: $('btnSendGuess'),
+        // Settings modal
+        settingsModal: $('settingsModal'),
+        btnCloseSettings: $('btnCloseSettings'),
+        modalMaxPlayers: $('modalMaxPlayers'),
+        modalRounds: $('modalRounds'),
+        modalTime: $('modalTime'),
+        modalCategory: $('modalCategory'),
+        modalChoiceCount: $('modalChoiceCount'),
+        modalAutoNextDelay: $('modalAutoNextDelay'),
+        modalChkAutoHint: $('modalChkAutoHint'),
+        modalChkCloseGuess: $('modalChkCloseGuess'),
+        modalChkAllowSkip: $('modalChkAllowSkip'),
+        btnApplySettings: $('btnApplySettings'),
+        modalMemberSummary: $('modalMemberSummary'),
+        modalPlayerManageList: $('modalPlayerManageList'),
+        btnModalCreateOffer: $('btnModalCreateOffer'),
+        modalInviteArea: $('modalInviteArea'),
+        modalOfferText: $('modalOfferText'),
+        btnModalCopyOffer: $('btnModalCopyOffer'),
+        modalAnswerInput: $('modalAnswerInput'),
+        btnModalAcceptAnswer: $('btnModalAcceptAnswer'),
+        // Summary
+        summaryWinnerTitle: $('summaryWinnerTitle'),
+        summarySubtitle: $('summarySubtitle'),
+        summaryScores: $('summaryScores'),
+        btnRematch: $('btnRematch'),
+        btnSummaryLobby: $('btnSummaryLobby'),
+        galleryGrid: $('galleryGrid'),
+        toastContainer: $('toastContainer')
+      };
+
+      const ctx = els.canvas.getContext('2d', { willReadFrequently: true });
+
+      // ================= UTILITIES =================
+      function uid(prefix = 'p') {
+        return `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
+      }
+
+      function showToast(msg, type = 'info') {
+        const colors = {
+          info: 'bg-slate-900 text-white',
+          success: 'bg-emerald-600 text-white',
+          warn: 'bg-amber-400 text-slate-900',
+          error: 'bg-rose-600 text-white'
+        };
+        const el = document.createElement('div');
+        el.className = `pointer-events-auto px-4 py-2.5 rounded-xl border-2 border-slate-900 shadow-[3px_3px_0_#1e293b] text-xs font-extrabold transition-all duration-300 ${colors[type] || colors.info}`;
+        el.textContent = msg;
+        els.toastContainer.appendChild(el);
+        setTimeout(() => {
+          el.style.opacity = '0';
+          el.style.transform = 'translateX(16px)';
+          setTimeout(() => el.remove(), 300);
+        }, 2800);
+      }
+
+      function copyText(text, successMsg) {
+        if (!text) return;
+        const done = () => showToast(successMsg || '已复制到剪贴板！', 'success');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+        } else {
+          fallbackCopy(text, done);
+        }
+      }
+
+      function fallbackCopy(text, cb) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+          cb();
+        } catch (e) {
+          showToast('复制失败，请手动全选复制', 'warn');
+        }
+      }
+
+      function loadStorage() {
+        try {
+          const savedName = localStorage.getItem('dg_my_name');
+          if (savedName) state.myName = savedName;
+          const savedWords = localStorage.getItem('dg_custom_words');
+          if (savedWords) {
+            const parsed = JSON.parse(savedWords);
+            if (Array.isArray(parsed)) state.customWords = parsed;
+          }
+        } catch (e) {}
+        els.inputMyName.value = state.myName;
+        renderCustomWords();
+      }
+
+      function saveStorage() {
+        try {
+          localStorage.setItem('dg_my_name', state.myName);
+          localStorage.setItem('dg_custom_words', JSON.stringify(state.customWords));
+        } catch (e) {}
+      }
+
+      function encodeSignal(obj) {
+        const json = JSON.stringify(obj);
+        const bytes = new TextEncoder().encode(json);
+        let bin = '';
+        bytes.forEach((b) => (bin += String.fromCharCode(b)));
+        return btoa(bin);
+      }
+
+      function decodeSignal(str) {
+        const clean = str.trim().replace(/\s+/g, '');
+        const bin = atob(clean);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const json = new TextDecoder().decode(bytes);
+        return JSON.parse(json);
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      // ================= CUSTOM WORD BANK =================
+      function renderCustomWords() {
+        els.customWordCount.textContent = `${state.customWords.length} 词`;
+        els.customWordList.innerHTML = '';
+        if (state.customWords.length === 0) {
+          els.customWordList.innerHTML = '<span class="text-xs text-slate-400">暂无自定义词，试试添加你们的专属梗吧~</span>';
+          return;
+        }
+        state.customWords.forEach((word, idx) => {
+          const chip = document.createElement('span');
+          chip.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 border border-slate-800 text-xs font-bold text-slate-800';
+          chip.innerHTML = `<span>${escapeHtml(word)}</span><button data-idx="${idx}" class="del-custom-word hover:text-rose-600 font-extrabold ml-0.5" title="删除">×</button>`;
+          els.customWordList.appendChild(chip);
+        });
+      }
+
+      function addCustomWord() {
+        const val = els.inputCustomWord.value.trim();
+        if (!val) return;
+        if (state.customWords.includes(val)) {
+          showToast('这个词已经在词库里啦', 'warn');
+          return;
+        }
+        state.customWords.push(val);
+        els.inputCustomWord.value = '';
+        saveStorage();
+        renderCustomWords();
+        AudioFX.pop();
+        showToast(`已添加「${val}」到专属词库`, 'success');
+      }
+
+      function getWordPool() {
+        const cat = state.settings.category;
+        const customObjs = state.customWords.map((w) => ({ w, c: 'custom', h: '你们自定义的专属梗词' }));
+        if (cat === 'custom') return customObjs.length > 0 ? customObjs : WORD_BANK;
+        if (cat === 'all') return [...WORD_BANK, ...customObjs];
+        return WORD_BANK.filter((item) => item.c === cat);
+      }
+
+      function pickRandomWords(count = 3) {
+        let pool = getWordPool().filter((item) => !state.usedWords.has(item.w));
+        if (pool.length < count) {
+          state.usedWords.clear();
+          pool = [...getWordPool()];
+        }
+        return [...pool].sort(() => Math.random() - 0.5).slice(0, count);
+      }
+
+      // ================= HOST ROSTER MANAGEMENT =================
+      function initHostLobbyRoster() {
+        state.isHost = true;
+        state.myId = 'host';
+        state.myName = els.inputMyName.value.trim() || '房主';
+        readLobbySettings();
+        const existing = state.players.find((p) => p.id === 'host');
+        if (!existing) {
+          state.players = [{ id: 'host', name: state.myName, score: 0, isHost: true, guessedThisRound: false }];
+        } else {
+          existing.name = state.myName;
+        }
+        renderLobbyRoster();
+      }
+
+      function clampInt(val, min, max, fallback) {
+        const n = parseInt(val, 10);
+        if (Number.isNaN(n)) return fallback;
+        return Math.max(min, Math.min(max, n));
+      }
+
+      function readLobbySettings() {
+        state.settings.maxPlayers = clampInt(els.selectMaxPlayers.value, 2, 20, 4);
+        state.settings.rounds = clampInt(els.selectRounds.value, 1, 50, 6);
+        state.settings.duration = clampInt(els.selectTime.value, 15, 300, 80);
+        state.settings.category = els.selectCategory.value;
+        state.settings.choiceCount = clampInt(els.selectChoiceCount.value, 2, 5, 3);
+        state.settings.autoNextDelay = clampInt(els.inputAutoNextDelay.value, 2, 15, 4);
+        state.settings.autoHint = !!els.chkAutoHint.checked;
+        state.settings.closeGuessHint = !!els.chkCloseGuess.checked;
+        state.settings.allowSkip = !!els.chkAllowSkip.checked;
+      }
+
+      function renderLobbyRoster() {
+        els.lobbyMemberCount.textContent = `${state.players.length} / ${state.settings.maxPlayers} 人`;
+        els.lobbyRosterList.innerHTML = '';
+        state.players.forEach((p, idx) => {
+          const chip = document.createElement('div');
+          chip.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border-2 border-slate-800 bg-white text-xs font-extrabold';
+          chip.innerHTML = `
+            <span class="w-4 h-4 rounded-full ${AVATAR_COLORS[idx % AVATAR_COLORS.length]} border border-slate-800 inline-flex items-center justify-center text-[10px]">${escapeHtml(p.name.slice(0, 1))}</span>
+            <span>${escapeHtml(p.name)}${p.isHost ? ' 👑' : ''}</span>
+            ${!p.isHost && state.isHost ? `<button data-kick="${p.id}" class="kick-btn ml-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 hover:bg-rose-200 text-[10px] font-extrabold">踢</button>` : ''}
+          `;
+          els.lobbyRosterList.appendChild(chip);
+        });
+        els.btnHostStartOnline.disabled = state.players.length < 2;
+        els.btnCreateOffer.disabled = state.players.length >= state.settings.maxPlayers;
+        updateSettingsModalRoster();
+        updateConnectionBadge();
+      }
+
+      function renderGuestLobbyRoster() {
+        els.guestLobbyRoster.innerHTML = '';
+        state.players.forEach((p) => {
+          const span = document.createElement('span');
+          span.className = 'px-2.5 py-0.5 rounded-full bg-white border border-blue-300 text-[11px] font-extrabold text-blue-900';
+          span.textContent = p.name + (p.isHost ? ' 👑' : '');
+          els.guestLobbyRoster.appendChild(span);
+        });
+      }
+
+      function updateSettingsModalRoster() {
+        els.modalMemberSummary.textContent = `${state.players.length} / ${state.settings.maxPlayers} 人`;
+        els.modalPlayerManageList.innerHTML = '';
+        state.players.forEach((p, idx) => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between p-2 rounded-xl border-2 border-slate-200 bg-slate-50';
+          row.innerHTML = `
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-7 h-7 rounded-full border-2 border-slate-800 ${AVATAR_COLORS[idx % AVATAR_COLORS.length]} flex items-center justify-center text-xs font-extrabold">${escapeHtml(p.name.slice(0, 1))}</span>
+              <span class="text-xs font-extrabold text-slate-900 truncate">${escapeHtml(p.name)}${p.isHost ? '（房主）' : ''}</span>
+            </div>
+            ${p.isHost
+              ? '<span class="text-[11px] font-bold text-amber-700 px-2">👑 房主</span>'
+              : `<button data-kick="${p.id}" class="kick-btn comic-btn px-2.5 py-1 rounded-lg bg-rose-500 text-white text-[11px] font-extrabold">踢出</button>`}
+          `;
+          els.modalPlayerManageList.appendChild(row);
+        });
+        els.btnModalCreateOffer.disabled = state.players.length >= state.settings.maxPlayers;
+      }
+
+      function kickPlayer(targetId) {
+        if (!state.isHost || targetId === 'host') return;
+        const target = state.players.find((p) => p.id === targetId);
+        if (!target) return;
+
+        // Notify and close peer channel
+        const peer = state.peers.get(targetId);
+        if (peer) {
+          sendToPeer(targetId, { type: 'kicked', reason: '房主已将你移出房间' });
+          setTimeout(() => {
+            try { if (peer.dc) peer.dc.close(); } catch (e) {}
+            try { if (peer.pc) peer.pc.close(); } catch (e) {}
+          }, 120);
+          state.peers.delete(targetId);
+        }
+
+        const wasDrawer = state.phase === 'drawing' && state.drawerId === targetId;
+        state.players = state.players.filter((p) => p.id !== targetId);
+        showToast(`已将「${target.name}」移出房间`, 'warn');
+        broadcastRoomSync(`🚫 房主已将「${target.name}」移出房间`);
+        renderLobbyRoster();
+        renderPlayers();
+
+        if (state.mode === 'online' && state.phase !== 'idle' && state.phase !== 'summary') {
+          if (state.players.length < 2) {
+            addSystemChat('⚠️ 房间人数不足 2 人，暂停当前对局。可点击右上角「房间设置」邀请新好友。');
+            clearTimers();
+          } else if (wasDrawer) {
+            hostEndRound(false, '画手离开，本轮自动跳过');
+          } else if (state.phase === 'drawing') {
+            checkAllGuessersDone();
+          }
+        }
+      }
+
+      // ================= WEBRTC STAR-TOPOLOGY MULTIPLAYER =================
+      const RTC_CONFIG = {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+      };
+
+      function closeAllP2P() {
+        state.peers.forEach((peer) => {
+          try { if (peer.dc) peer.dc.close(); } catch (e) {}
+          try { if (peer.pc) peer.pc.close(); } catch (e) {}
+        });
+        state.peers.clear();
+        cancelPendingInvite();
+        try { if (state.hostPeer) state.hostPeer.destroy(); } catch (e) {}
+        try { if (state.guestPeer) state.guestPeer.destroy(); } catch (e) {}
+        state.hostPeer = null;
+        state.guestPeer = null;
+        state.roomCode = '';
+        els.quickRoomActiveBox.classList.add('hidden');
+        els.modalQuickRoomRow.classList.add('hidden');
+        try { if (state.guestDc) state.guestDc.close(); } catch (e) {}
+        try { if (state.guestPc) state.guestPc.close(); } catch (e) {}
+        state.guestDc = null;
+        state.guestPc = null;
+        state.guestConnected = false;
+        updateConnectionBadge();
+      }
+
+      function cancelPendingInvite() {
+        if (state.pendingInvite) {
+          try { if (state.pendingInvite.dc) state.pendingInvite.dc.close(); } catch (e) {}
+          try { if (state.pendingInvite.pc) state.pendingInvite.pc.close(); } catch (e) {}
+          state.pendingInvite = null;
+        }
+        els.hostOfferBox.classList.add('hidden');
+        els.modalInviteArea.classList.add('hidden');
+        els.textareaHostOffer.value = '';
+        els.textareaHostAnswerInput.value = '';
+        els.modalOfferText.value = '';
+        els.modalAnswerInput.value = '';
+      }
+
+      function updateConnectionBadge() {
+        if (state.mode === 'local' || state.mode === 'solo') {
+          els.connectionBadge.classList.add('hidden');
+          els.connectionBadge.classList.remove('flex');
+          els.btnRoomSettings.classList.add('hidden');
+          els.btnRoomSettings.classList.remove('flex');
+          return;
+        }
+        const connectedCount = state.isHost ? state.players.length : (state.guestConnected ? state.players.length : 0);
+        if (connectedCount > 1 || state.guestConnected) {
+          els.connectionBadge.classList.remove('hidden');
+          els.connectionBadge.classList.add('flex');
+          els.connDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+          els.connText.textContent = `联机 ${state.players.length}/${state.settings.maxPlayers}人`;
+        } else {
+          els.connectionBadge.classList.add('hidden');
+          els.connectionBadge.classList.remove('flex');
+        }
+
+        if (state.isHost && state.mode === 'online') {
+          els.btnRoomSettings.classList.remove('hidden');
+          els.btnRoomSettings.classList.add('flex');
+        } else {
+          els.btnRoomSettings.classList.add('hidden');
+          els.btnRoomSettings.classList.remove('flex');
+        }
+      }
+
+      function waitForIceGathering(pc, timeoutMs = 2500) {
+        return new Promise((resolve) => {
+          if (pc.iceGatheringState === 'complete') return resolve();
+          const timer = setTimeout(resolve, timeoutMs);
+          pc.addEventListener('icegatheringstatechange', () => {
+            if (pc.iceGatheringState === 'complete') {
+              clearTimeout(timer);
+              resolve();
+            }
+          });
+        });
+      }
+
+      function isChannelOpen(ch) {
+        if (!ch) return false;
+        if (typeof ch.open === 'boolean') return ch.open; // PeerJS DataConnection
+        return ch.readyState === 'open'; // Native RTCDataChannel
+      }
+
+      function safeChannelSend(ch, payload) {
+        if (!isChannelOpen(ch)) return;
+        try {
+          if (typeof ch.open === 'boolean') ch.send(payload);
+          else ch.send(JSON.stringify(payload));
+        } catch (e) {}
+      }
+
+      function sendToPeer(peerId, payload) {
+        const peer = state.peers.get(peerId);
+        if (peer && peer.dc) safeChannelSend(peer.dc, payload);
+      }
+
+      function broadcastFromHost(payload, excludeId = null) {
+        if (!state.isHost) return;
+        state.peers.forEach((peer, id) => {
+          if (id === excludeId) return;
+          if (peer.dc) safeChannelSend(peer.dc, payload);
+        });
+      }
+
+      function sendToHost(payload) {
+        if (!state.isHost && state.guestDc) safeChannelSend(state.guestDc, payload);
+      }
+
+      // ================= PEERJS QUICK ROOM (6-DIGIT CODE + INVITE URL) =================
+      function buildRoomInviteLink(code) {
+        try {
+          if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('room', code);
+            return url.toString();
+          }
+        } catch (e) {}
+        return `房间号：${code}（部署到公网后此处会自动生成可点击的邀请链接）`;
+      }
+
+      function createQuickPeerRoom() {
+        if (typeof window.Peer === 'undefined') {
+          showToast('极速信令库未加载，可使用下方「备用：手动传码邀请」', 'warn');
+          return;
+        }
+        closeAllP2P();
+        initHostLobbyRoster();
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        state.roomCode = code;
+        els.btnCreateQuickRoom.disabled = true;
+        els.btnCreateQuickRoom.textContent = '创建中...';
+
+        try {
+          const peer = new window.Peer(`dg-room-${code}`, { config: RTC_CONFIG });
+          state.hostPeer = peer;
+
+          const timeoutId = setTimeout(() => {
+            if (!peer.open) {
+              showToast('当前网络无法连接极速信令（部署到公网后即可秒连；现在可用「备用：手动传码」）', 'warn');
+              els.btnCreateQuickRoom.disabled = false;
+              els.btnCreateQuickRoom.innerHTML = '<i data-lucide="sparkles" class="w-3.5 h-3.5"></i><span>创建 6 位房间号</span>';
+              if (window.lucide) lucide.createIcons();
+            }
+          }, 6000);
+
+          peer.on('open', () => {
+            clearTimeout(timeoutId);
+            els.displayRoomCode.textContent = code;
+            els.modalRoomCodeText.textContent = code;
+            els.quickRoomActiveBox.classList.remove('hidden');
+            els.modalQuickRoomRow.classList.remove('hidden');
+            els.btnCreateQuickRoom.disabled = false;
+            els.btnCreateQuickRoom.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>换新房号</span>';
+            if (window.lucide) lucide.createIcons();
+            AudioFX.pop();
+            showToast(`房间 ${code} 已创建！把房号或链接发给兄弟即可免复制秒进`, 'success');
+          });
+
+          peer.on('connection', (conn) => {
+            const peerId = uid('p');
+            conn.on('open', () => {
+              if (state.players.length >= state.settings.maxPlayers) {
+                safeChannelSend(conn, { type: 'kicked', reason: `房间已满（上限 ${state.settings.maxPlayers} 人）` });
+                setTimeout(() => conn.close(), 150);
+                return;
+              }
+              state.peers.set(peerId, { id: peerId, pc: null, dc: conn, connected: true });
+              AudioFX.fanfare();
+              sendToPeer(peerId, {
+                type: 'welcome',
+                yourId: peerId,
+                players: state.players,
+                settings: state.settings,
+                inGame: state.mode === 'online' && state.phase !== 'idle',
+                currentRound: state.currentRound,
+                drawerId: state.drawerId,
+                phase: state.phase,
+                timeLeft: state.timeLeft,
+                ops: state.ops,
+                wordMeta: state.currentWordObj ? { len: state.currentWordObj.w.length, c: state.currentWordObj.c, revealed: state.revealedIndices } : null
+              });
+            });
+
+            conn.on('data', (data) => {
+              const msg = typeof data === 'string' ? JSON.parse(data) : data;
+              handleHostIncoming(peerId, msg);
+            });
+
+            conn.on('close', () => {
+              if (!state.peers.has(peerId)) return;
+              state.peers.delete(peerId);
+              const leftPlayer = state.players.find((p) => p.id === peerId);
+              if (leftPlayer) {
+                const wasDrawer = state.phase === 'drawing' && state.drawerId === peerId;
+                state.players = state.players.filter((p) => p.id !== peerId);
+                renderLobbyRoster();
+                renderPlayers();
+                broadcastRoomSync(`⚠️ 「${leftPlayer.name}」断开了连接`);
+                showToast(`「${leftPlayer.name}」已离开房间`, 'warn');
+                if (state.mode === 'online' && state.phase === 'drawing') {
+                  if (state.players.length < 2) clearTimers();
+                  else if (wasDrawer) hostEndRound(false, '画手掉线，自动跳过本轮');
+                  else checkAllGuessersDone();
+                }
+              }
+            });
+          });
+
+          peer.on('error', (err) => {
+            clearTimeout(timeoutId);
+            els.btnCreateQuickRoom.disabled = false;
+            els.btnCreateQuickRoom.innerHTML = '<i data-lucide="sparkles" class="w-3.5 h-3.5"></i><span>创建 6 位房间号</span>';
+            if (window.lucide) lucide.createIcons();
+            if (err && err.type === 'unavailable-id') {
+              createQuickPeerRoom();
+            } else {
+              showToast('极速信令连接受限（部署到公网即可正常使用；当前可用备用手动传码）', 'warn');
+            }
+          });
+        } catch (e) {
+          els.btnCreateQuickRoom.disabled = false;
+          showToast('创建房间失败，请尝试备用手动传码', 'error');
+        }
+      }
+
+      function joinQuickPeerRoom() {
+        const code = els.inputJoinRoomCode.value.trim().replace(/\D/g, '');
+        if (code.length !== 6) {
+          showToast('请输入完整的 6 位数字房间号', 'warn');
+          return;
+        }
+        if (typeof window.Peer === 'undefined') {
+          showToast('极速信令库未加载，请展开下方「备用方式」', 'warn');
+          return;
+        }
+        closeAllP2P();
+        state.isHost = false;
+        state.myName = els.inputMyName.value.trim() || '好兄弟';
+        saveStorage();
+
+        els.btnJoinQuickRoom.disabled = true;
+        els.btnJoinQuickRoom.textContent = '连接中...';
+        els.guestWaitingStatus.classList.remove('hidden');
+        els.guestWaitText.textContent = `正在连接房间 ${code}...`;
+
+        try {
+          const peer = new window.Peer(undefined, { config: RTC_CONFIG });
+          state.guestPeer = peer;
+
+          const timeoutId = setTimeout(() => {
+            if (!state.guestConnected) {
+              els.btnJoinQuickRoom.disabled = false;
+              els.btnJoinQuickRoom.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>加入房间</span>';
+              if (window.lucide) lucide.createIcons();
+              els.guestWaitText.textContent = '连接超时，请确认房号正确或房主仍在房间内';
+              showToast('连接超时，请检查房号或切换网络重试', 'warn');
+            }
+          }, 8000);
+
+          peer.on('open', () => {
+            const conn = peer.connect(`dg-room-${code}`, { reliable: true });
+            state.guestDc = conn;
+
+            conn.on('open', () => {
+              clearTimeout(timeoutId);
+              state.guestConnected = true;
+              els.btnJoinQuickRoom.disabled = false;
+              els.btnJoinQuickRoom.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>已加入</span>';
+              if (window.lucide) lucide.createIcons();
+              AudioFX.fanfare();
+              showToast(`已成功加入房间 ${code}！`, 'success');
+              els.guestWaitText.textContent = `✅ 已进入房间 ${code}！等待房主点击「开始联机游戏」...`;
+              sendToHost({ type: 'guest_hello', id: state.myId, name: state.myName });
+              updateConnectionBadge();
+            });
+
+            conn.on('data', (data) => {
+              const msg = typeof data === 'string' ? JSON.parse(data) : data;
+              handleGuestIncoming(msg);
+            });
+
+            conn.on('close', () => {
+              state.guestConnected = false;
+              updateConnectionBadge();
+              if (state.mode === 'online') {
+                addSystemChat('⚠️ 与房主的连接已断开');
+                showToast('与房主的连接已断开', 'warn');
+              }
+            });
+          });
+
+          peer.on('error', () => {
+            clearTimeout(timeoutId);
+            els.btnJoinQuickRoom.disabled = false;
+            els.btnJoinQuickRoom.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>加入房间</span>';
+            if (window.lucide) lucide.createIcons();
+            els.guestWaitText.textContent = '无法连接到该房间，请核对房号或尝试备用手动传码';
+            showToast('未能连接到该房间号', 'error');
+          });
+        } catch (e) {
+          els.btnJoinQuickRoom.disabled = false;
+          showToast('加入房间失败', 'error');
+        }
+      }
+
+      function sendP2P(payload) {
+        if (state.mode !== 'online' && state.mode !== 'lobby') return;
+        if (state.isHost) {
+          broadcastFromHost(payload);
+        } else {
+          sendToHost(payload);
+        }
+      }
+
+      function broadcastRoomSync(sysMsg = '') {
+        if (!state.isHost) return;
+        broadcastFromHost({
+          type: 'room_sync',
+          players: state.players,
+          settings: state.settings,
+          sysMsg
+        });
+        if (sysMsg && !els.gameView.classList.contains('hidden')) {
+          addSystemChat(sysMsg);
+        }
+      }
+
+      // Host creates an invite code for 1 new player
+      async function createHostInvite(source = 'lobby') {
+        if (typeof RTCPeerConnection === 'undefined') {
+          showToast('当前浏览器不支持 WebRTC 联机', 'error');
+          return;
+        }
+        initHostLobbyRoster();
+        if (state.players.length >= state.settings.maxPlayers) {
+          showToast(`房间人数已达上限 (${state.settings.maxPlayers}人)，请先调高上限`, 'warn');
+          return;
+        }
+        cancelPendingInvite();
+
+        const btn = source === 'modal' ? els.btnModalCreateOffer : els.btnCreateOffer;
+        btn.disabled = true;
+        btn.textContent = '生成中...';
+
+        try {
+          const peerId = uid('p');
+          const pc = new RTCPeerConnection(RTC_CONFIG);
+          const dc = pc.createDataChannel('draw-guess');
+          state.pendingInvite = { id: peerId, pc, dc, source };
+
+          attachHostPeerChannel(peerId, pc, dc);
+
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await waitForIceGathering(pc, 2500);
+
+          const code = encodeSignal({
+            sdp: pc.localDescription,
+            hostName: state.myName,
+            assignedId: peerId,
+            settings: state.settings
+          });
+
+          if (source === 'modal') {
+            els.modalOfferText.value = code;
+            els.modalInviteArea.classList.remove('hidden');
+          } else {
+            els.textareaHostOffer.value = code;
+            els.hostOfferBox.classList.remove('hidden');
+          }
+          showToast('邀请码已生成！发给好友即可拉他进房', 'success');
+        } catch (err) {
+          showToast('生成邀请码失败，请重试', 'error');
+          cancelPendingInvite();
+        } finally {
+          btn.disabled = state.players.length >= state.settings.maxPlayers;
+          btn.innerHTML = source === 'modal'
+            ? '生成邀请码'
+            : '<i data-lucide="user-plus" class="w-3.5 h-3.5"></i><span>邀请一位好友</span>';
+          if (window.lucide) lucide.createIcons();
+        }
+      }
+
+      function attachHostPeerChannel(peerId, pc, dc) {
+        let opened = false;
+        const onOpen = () => {
+          if (opened) return;
+          opened = true;
+          const peerObj = state.peers.get(peerId) || { id: peerId, pc, dc, connected: true };
+          peerObj.connected = true;
+          state.peers.set(peerId, peerObj);
+          if (state.pendingInvite && state.pendingInvite.id === peerId) {
+            state.pendingInvite = null;
+            els.hostOfferBox.classList.add('hidden');
+            els.modalInviteArea.classList.add('hidden');
+            els.textareaHostAnswerInput.value = '';
+            els.modalAnswerInput.value = '';
+          }
+          AudioFX.fanfare();
+          // Send initial welcome & room state
+          sendToPeer(peerId, {
+            type: 'welcome',
+            yourId: peerId,
+            players: state.players,
+            settings: state.settings,
+            inGame: state.mode === 'online' && state.phase !== 'idle',
+            currentRound: state.currentRound,
+            drawerId: state.drawerId,
+            phase: state.phase,
+            timeLeft: state.timeLeft,
+            ops: state.ops,
+            wordMeta: state.currentWordObj ? { len: state.currentWordObj.w.length, c: state.currentWordObj.c, revealed: state.revealedIndices } : null
+          });
+        };
+        dc.onopen = onOpen;
+        if (dc.readyState === 'open') onOpen();
+
+        dc.onclose = () => {
+          if (!state.peers.has(peerId)) return;
+          state.peers.delete(peerId);
+          const leftPlayer = state.players.find((p) => p.id === peerId);
+          if (leftPlayer) {
+            const wasDrawer = state.phase === 'drawing' && state.drawerId === peerId;
+            state.players = state.players.filter((p) => p.id !== peerId);
+            renderLobbyRoster();
+            renderPlayers();
+            broadcastRoomSync(`⚠️ 「${leftPlayer.name}」断开了连接`);
+            showToast(`「${leftPlayer.name}」已离开房间`, 'warn');
+            if (state.mode === 'online' && state.phase === 'drawing') {
+              if (state.players.length < 2) {
+                clearTimers();
+              } else if (wasDrawer) {
+                hostEndRound(false, '画手掉线，自动跳过本轮');
+              } else {
+                checkAllGuessersDone();
+              }
+            }
+          }
+        };
+
+        dc.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            handleHostIncoming(peerId, msg);
+          } catch (e) {}
+        };
+      }
+
+      async function acceptGuestAnswer(source = 'lobby') {
+        const inputEl = source === 'modal' ? els.modalAnswerInput : els.textareaHostAnswerInput;
+        const raw = inputEl.value.trim();
+        if (!raw) {
+          showToast('请先粘贴好友发回的应答码', 'warn');
+          return;
+        }
+        if (!state.pendingInvite) {
+          showToast('请先点击生成邀请码', 'warn');
+          return;
+        }
+        try {
+          const data = decodeSignal(raw);
+          if (!data.sdp || data.sdp.type !== 'answer') throw new Error('invalid');
+          const { id, pc, dc } = state.pendingInvite;
+          const guestName = (data.name || '好兄弟').trim().slice(0, 12);
+
+          // Pre-register player
+          if (!state.players.find((p) => p.id === id)) {
+            state.players.push({ id, name: guestName, score: 0, isHost: false, guessedThisRound: false });
+          }
+          state.peers.set(id, { id, pc, dc, connected: false });
+          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          showToast(`正在拉入「${guestName}」...`, 'info');
+          renderLobbyRoster();
+        } catch (e) {
+          showToast('应答码格式不正确，请确认完整复制', 'error');
+        }
+      }
+
+      // Guest joins via host invite code
+      async function generateGuestAnswer() {
+        const raw = els.textareaJoinOfferInput.value.trim();
+        if (!raw) {
+          showToast('请先粘贴房主发来的房间邀请码', 'warn');
+          return;
+        }
+        if (typeof RTCPeerConnection === 'undefined') {
+          showToast('当前浏览器不支持 WebRTC 联机', 'error');
+          return;
+        }
+        closeAllP2P();
+        state.isHost = false;
+        state.myName = els.inputMyName.value.trim() || '好兄弟';
+        saveStorage();
+
+        els.btnGenerateAnswer.disabled = true;
+        els.btnGenerateAnswer.textContent = '生成中...';
+
+        try {
+          const offerData = decodeSignal(raw);
+          if (!offerData.sdp || offerData.sdp.type !== 'offer') throw new Error('invalid');
+          state.myId = offerData.assignedId || uid('g');
+          if (offerData.settings) state.settings = offerData.settings;
+
+          const pc = new RTCPeerConnection(RTC_CONFIG);
+          state.guestPc = pc;
+          pc.ondatachannel = (ev) => attachGuestChannel(ev.channel);
+
+          await pc.setRemoteDescription(new RTCSessionDescription(offerData.sdp));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await waitForIceGathering(pc, 2500);
+
+          const code = encodeSignal({
+            sdp: pc.localDescription,
+            name: state.myName
+          });
+          els.textareaJoinAnswer.value = code;
+          els.joinAnswerBox.classList.remove('hidden');
+          els.guestWaitingStatus.classList.remove('hidden');
+          els.guestWaitText.textContent = '应答码已生成！发回给房主后你将自动进入房间...';
+          showToast('应答码已生成！发回给房主即可加入', 'success');
+        } catch (e) {
+          showToast('邀请码无效或已过期，请让房主重新生成', 'error');
+          closeAllP2P();
+        } finally {
+          els.btnGenerateAnswer.disabled = false;
+          els.btnGenerateAnswer.innerHTML = '<i data-lucide="key-round" class="w-4 h-4"></i><span>生成应答码</span>';
+          if (window.lucide) lucide.createIcons();
+        }
+      }
+
+      function attachGuestChannel(dc) {
+        state.guestDc = dc;
+        let opened = false;
+        const onOpen = () => {
+          if (opened) return;
+          opened = true;
+          state.guestConnected = true;
+          AudioFX.fanfare();
+          showToast('已成功加入房间！', 'success');
+          els.guestWaitText.textContent = '✅ 已加入房间！等待房主点击「开始联机游戏」...';
+          sendToHost({ type: 'guest_hello', id: state.myId, name: state.myName });
+          updateConnectionBadge();
+        };
+        dc.onopen = onOpen;
+        if (dc.readyState === 'open') onOpen();
+
+        dc.onclose = () => {
+          state.guestConnected = false;
+          updateConnectionBadge();
+          if (state.mode === 'online') {
+            addSystemChat('⚠️ 与房主的连接已断开');
+            showToast('与房主的连接已断开', 'warn');
+          }
+        };
+
+        dc.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            handleGuestIncoming(msg);
+          } catch (e) {}
+        };
+      }
+
+      // ================= HOST MESSAGE ROUTER & RELAY =================
+      let remoteActiveStroke = null;
+
+      function handleHostIncoming(fromPeerId, msg) {
+        switch (msg.type) {
+          case 'guest_hello': {
+            const p = state.players.find((x) => x.id === fromPeerId);
+            if (p) {
+              p.name = (msg.name || p.name).slice(0, 12);
+            } else {
+              state.players.push({ id: fromPeerId, name: (msg.name || '好兄弟').slice(0, 12), score: 0, isHost: false, guessedThisRound: false });
+            }
+            renderLobbyRoster();
+            renderPlayers();
+            broadcastRoomSync(`👋 「${msg.name || '好兄弟'}」加入了房间！`);
+            showToast(`「${msg.name || '好兄弟'}」已加入房间！`, 'success');
+            break;
+          }
+
+          case 'word_selected':
+            if (state.drawerId !== fromPeerId) return;
+            state.currentWordObj = msg.wordObj;
+            state.usedWords.add(msg.wordObj.w);
+            broadcastFromHost({
+              type: 'drawing_start',
+              wordLen: msg.wordObj.w.length,
+              wordCat: msg.wordObj.c,
+              wordHint: msg.wordObj.h,
+              drawerId: state.drawerId,
+              duration: state.settings.duration
+            }, fromPeerId);
+            // Send full word confirmation to drawer
+            sendToPeer(fromPeerId, {
+              type: 'drawing_start',
+              wordObj: msg.wordObj,
+              wordLen: msg.wordObj.w.length,
+              wordCat: msg.wordObj.c,
+              wordHint: msg.wordObj.h,
+              drawerId: state.drawerId,
+              duration: state.settings.duration
+            });
+            beginDrawingPhase();
+            break;
+
+          case 'hint_reveal':
+            if (state.drawerId !== fromPeerId) return;
+            revealOneHintChar();
+            break;
+
+          case 'skip_round':
+            if (state.drawerId !== fromPeerId || state.phase !== 'drawing') return;
+            hostEndRound(false, '画手跳过了本回合');
+            break;
+
+          case 'stroke_start':
+          case 'stroke_move':
+          case 'stroke_end':
+          case 'draw_fill':
+          case 'draw_undo':
+          case 'draw_clear':
+            if (state.drawerId !== fromPeerId) return;
+            applyRemoteDrawMsg(msg);
+            broadcastFromHost(msg, fromPeerId);
+            break;
+
+          case 'reaction':
+            spawnReaction(msg.text, true);
+            broadcastFromHost(msg, fromPeerId);
+            break;
+
+          case 'chat': {
+            const senderObj = state.players.find((p) => p.id === fromPeerId);
+            const senderName = senderObj ? senderObj.name : (msg.sender || '玩家');
+            hostProcessChat(fromPeerId, senderName, msg.text);
+            break;
+          }
+        }
+      }
+
+      // ================= GUEST MESSAGE HANDLER =================
+      function handleGuestIncoming(msg) {
+        switch (msg.type) {
+          case 'welcome':
+            state.myId = msg.yourId || state.myId;
+            state.players = msg.players || [];
+            if (msg.settings) state.settings = msg.settings;
+            renderGuestLobbyRoster();
+            updateConnectionBadge();
+            if (msg.inGame) {
+              state.mode = 'online';
+              state.currentRound = msg.currentRound || 1;
+              state.drawerId = msg.drawerId || 'host';
+              state.phase = msg.phase || 'drawing';
+              state.timeLeft = msg.timeLeft || state.settings.duration;
+              state.ops = msg.ops || [];
+              if (msg.wordMeta) {
+                state.currentWordObj = { w: '？'.repeat(msg.wordMeta.len), c: msg.wordMeta.c, h: '' };
+                state.revealedIndices = msg.wordMeta.revealed || [];
+              }
+              switchView('game');
+              renderPlayers();
+              updateTopBar();
+              updateWordDisplay();
+              redrawAllOps();
+              addSystemChat('🌐 你已中途加入对局！');
+            }
+            break;
+
+          case 'room_sync':
+            state.players = msg.players || state.players;
+            if (msg.settings) state.settings = msg.settings;
+            renderGuestLobbyRoster();
+            renderPlayers();
+            updateTopBar();
+            updateConnectionBadge();
+            if (msg.sysMsg && !els.gameView.classList.contains('hidden')) {
+              addSystemChat(msg.sysMsg);
+            }
+            break;
+
+          case 'kicked':
+            showToast(msg.reason || '你已被房主移出房间', 'error');
+            clearTimers();
+            closeAllP2P();
+            state.mode = 'lobby';
+            switchView('lobby');
+            els.joinAnswerBox.classList.add('hidden');
+            break;
+
+          case 'game_start':
+            state.mode = 'online';
+            state.players = msg.players || state.players;
+            if (msg.settings) state.settings = msg.settings;
+            state.gallery = [];
+            els.chatMessages.innerHTML = '';
+            els.btnSoloNextWord.classList.add('hidden');
+            els.btnSkipRound.classList.remove('hidden');
+            els.modeBadgeSmall.textContent = `🌐 ${state.players.length}人联机`;
+            switchView('game');
+            renderPlayers();
+            addSystemChat(`🌐 多人联机开始！共 ${state.players.length} 位玩家，${state.settings.rounds} 回合！`);
+            break;
+
+          case 'round_init':
+            if (els.gameView.classList.contains('hidden')) {
+              state.mode = 'online';
+              switchView('game');
+            }
+            clearTimers();
+            state.currentRound = msg.round;
+            state.drawerId = msg.drawerId;
+            state.players = msg.players || state.players;
+            if (msg.settings) state.settings = msg.settings;
+            state.phase = 'choosing';
+            state.ops = [];
+            state.revealedIndices = [];
+            state.currentWordObj = null;
+            fillWhite();
+            hideAllOverlays();
+            renderPlayers();
+            updateTopBar();
+            if (state.drawerId === state.myId && msg.choices) {
+              showWordChoiceOverlay(msg.choices);
+            } else {
+              els.waitingTitle.textContent = `【${getDrawerName()}】正在选词...`;
+              els.overlayWaiting.classList.remove('hidden');
+            }
+            break;
+
+          case 'drawing_start':
+            state.drawerId = msg.drawerId;
+            if (msg.wordObj) {
+              state.currentWordObj = msg.wordObj;
+            } else {
+              state.currentWordObj = {
+                w: '？'.repeat(msg.wordLen || 2),
+                c: msg.wordCat || 'all',
+                h: msg.wordHint || ''
+              };
+            }
+            state.settings.duration = msg.duration || state.settings.duration;
+            beginDrawingPhase();
+            break;
+
+          case 'hint_reveal':
+            state.revealedIndices = msg.revealedIndices || [];
+            if (msg.maskedWord) {
+              els.wordDisplay.textContent = msg.maskedWord;
+            }
+            if (msg.sysMsg) addSystemChat(msg.sysMsg);
+            AudioFX.pop();
+            break;
+
+          case 'timer_sync':
+            state.timeLeft = msg.timeLeft;
+            els.timerText.textContent = `${Math.max(0, state.timeLeft)}s`;
+            if (state.timeLeft <= 10 && state.timeLeft > 0) {
+              els.timerBox.classList.add('timer-urgent');
+              AudioFX.tick();
+            }
+            if (msg.clueMsg) addSystemChat(msg.clueMsg);
+            break;
+
+          case 'stroke_start':
+          case 'stroke_move':
+          case 'stroke_end':
+          case 'draw_fill':
+          case 'draw_undo':
+          case 'draw_clear':
+            applyRemoteDrawMsg(msg);
+            break;
+
+          case 'reaction':
+            spawnReaction(msg.text, true);
+            break;
+
+          case 'chat_broadcast':
+            if (msg.isSystem) {
+              addSystemChat(msg.text);
+            } else {
+              addChatBubble(msg.sender, msg.text, msg.isHighlight);
+              if (msg.isHighlight) AudioFX.correct();
+              else AudioFX.pop();
+            }
+            if (msg.players) {
+              state.players = msg.players;
+              renderPlayers();
+            }
+            break;
+
+          case 'round_end':
+            state.players = msg.players || state.players;
+            showRoundResultUI(msg.word, msg.title, msg.pointsText, msg.guessedAny, msg.isLast);
+            break;
+
+          case 'game_summary':
+            state.players = msg.players || state.players;
+            showSummary();
+            break;
+        }
+      }
+
+      function applyRemoteDrawMsg(msg) {
+        if (msg.type === 'stroke_start') {
+          remoteActiveStroke = { type: 'stroke', tool: msg.tool, color: msg.color, size: msg.size, points: [msg.pt] };
+          state.ops.push(remoteActiveStroke);
+          drawSegment(msg.pt, { x: msg.pt.x + 0.0005, y: msg.pt.y + 0.0005 }, msg.tool, msg.color, msg.size);
+        } else if (msg.type === 'stroke_move') {
+          if (remoteActiveStroke) {
+            const prev = remoteActiveStroke.points[remoteActiveStroke.points.length - 1];
+            remoteActiveStroke.points.push(msg.pt);
+            drawSegment(prev, msg.pt, remoteActiveStroke.tool, remoteActiveStroke.color, remoteActiveStroke.size);
+          }
+        } else if (msg.type === 'stroke_end') {
+          remoteActiveStroke = null;
+        } else if (msg.type === 'draw_fill') {
+          state.ops.push({ type: 'fill', x: msg.x, y: msg.y, color: msg.color });
+          floodFillNormalized(msg.x, msg.y, msg.color);
+        } else if (msg.type === 'draw_undo') {
+          doUndo(true);
+        } else if (msg.type === 'draw_clear') {
+          doClear(true);
+        }
+      }
+
+      // ================= CANVAS ENGINE =================
+      function resizeCanvas() {
+        const rect = els.canvasWrap.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        els.canvas.width = Math.round(rect.width * dpr);
+        els.canvas.height = Math.round(rect.height * dpr);
+        redrawAllOps();
+      }
+
+      function fillWhite() {
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, els.canvas.width, els.canvas.height);
+        ctx.restore();
+      }
+
+      function drawSegment(p1, p2, tool, color, size) {
+        const w = els.canvas.width;
+        const h = els.canvas.height;
+        const scale = w / 720;
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = Math.max(1.5, size * scale);
+        if (tool === 'eraser') {
+          ctx.strokeStyle = '#ffffff';
+          ctx.globalAlpha = 1;
+        } else if (tool === 'marker') {
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = 0.28;
+          ctx.lineWidth = Math.max(4, size * 2.1 * scale);
+        } else {
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = 1;
+        }
+        ctx.beginPath();
+        ctx.moveTo(p1.x * w, p1.y * h);
+        ctx.lineTo(p2.x * w, p2.y * h);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawStrokeOp(op) {
+        if (!op.points || op.points.length === 0) return;
+        if (op.points.length === 1) {
+          drawSegment(op.points[0], { x: op.points[0].x + 0.0005, y: op.points[0].y + 0.0005 }, op.tool, op.color, op.size);
+          return;
+        }
+        for (let i = 1; i < op.points.length; i++) {
+          drawSegment(op.points[i - 1], op.points[i], op.tool, op.color, op.size);
+        }
+      }
+
+      function hexToRgba(hex) {
+        const clean = hex.replace('#', '');
+        const num = parseInt(clean, 16);
+        return [(num >> 16) & 255, (num >> 8) & 255, num & 255, 255];
+      }
+
+      function floodFillNormalized(nx, ny, hexColor) {
+        const w = els.canvas.width;
+        const h = els.canvas.height;
+        const startX = Math.max(0, Math.min(w - 1, Math.floor(nx * w)));
+        const startY = Math.max(0, Math.min(h - 1, Math.floor(ny * h)));
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+        const startPos = (startY * w + startX) * 4;
+        const sr = data[startPos], sg = data[startPos + 1], sb = data[startPos + 2], sa = data[startPos + 3];
+        const [fr, fg, fb, fa] = hexToRgba(hexColor);
+        if (Math.abs(sr - fr) < 10 && Math.abs(sg - fg) < 10 && Math.abs(sb - fb) < 10) return;
+
+        const tol = 36;
+        const match = (pos) =>
+          Math.abs(data[pos] - sr) <= tol &&
+          Math.abs(data[pos + 1] - sg) <= tol &&
+          Math.abs(data[pos + 2] - sb) <= tol &&
+          Math.abs(data[pos + 3] - sa) <= tol;
+
+        const visited = new Uint8Array(w * h);
+        const stack = [startX, startY];
+        while (stack.length > 0) {
+          const y = stack.pop();
+          const x = stack.pop();
+          const idx = y * w + x;
+          if (visited[idx]) continue;
+          const pos = idx * 4;
+          if (!match(pos)) continue;
+          visited[idx] = 1;
+          data[pos] = fr;
+          data[pos + 1] = fg;
+          data[pos + 2] = fb;
+          data[pos + 3] = fa;
+          if (x > 0 && !visited[idx - 1]) stack.push(x - 1, y);
+          if (x < w - 1 && !visited[idx + 1]) stack.push(x + 1, y);
+          if (y > 0 && !visited[idx - w]) stack.push(x, y - 1);
+          if (y < h - 1 && !visited[idx + w]) stack.push(x, y + 1);
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+
+      function redrawAllOps() {
+        fillWhite();
+        for (const op of state.ops) {
+          if (op.type === 'stroke') drawStrokeOp(op);
+          else if (op.type === 'fill') floodFillNormalized(op.x, op.y, op.color);
+        }
+      }
+
+      function amIDrawer() {
+        if (state.mode === 'solo' || state.mode === 'local') return true;
+        return state.drawerId === state.myId;
+      }
+
+      function canIDraw() {
+        if (state.mode === 'solo') return true;
+        if (state.phase !== 'drawing') return false;
+        return amIDrawer();
+      }
+
+      function getCanvasNormPoint(e) {
+        const rect = els.canvas.getBoundingClientRect();
+        return {
+          x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+          y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
+        };
+      }
+
+      function onPointerDown(e) {
+        if (!canIDraw()) return;
+        e.preventDefault();
+        AudioFX.init();
+        const pt = getCanvasNormPoint(e);
+
+        if (state.tool === 'fill') {
+          state.ops.push({ type: 'fill', x: pt.x, y: pt.y, color: state.color });
+          if (state.ops.length > 60) state.ops.shift();
+          floodFillNormalized(pt.x, pt.y, state.color);
+          AudioFX.pop();
+          sendP2P({ type: 'draw_fill', x: pt.x, y: pt.y, color: state.color });
+          return;
+        }
+
+        state.isDrawing = true;
+        state.lastPt = pt;
+        state.activeStroke = { type: 'stroke', tool: state.tool, color: state.color, size: state.size, points: [pt] };
+        state.ops.push(state.activeStroke);
+        if (state.ops.length > 80) state.ops.shift();
+        drawSegment(pt, { x: pt.x + 0.0005, y: pt.y + 0.0005 }, state.tool, state.color, state.size);
+        sendP2P({ type: 'stroke_start', tool: state.tool, color: state.color, size: state.size, pt });
+      }
+
+      function onPointerMove(e) {
+        if (!state.isDrawing || !canIDraw()) return;
+        e.preventDefault();
+        const pt = getCanvasNormPoint(e);
+        const dx = pt.x - state.lastPt.x;
+        const dy = pt.y - state.lastPt.y;
+        if (dx * dx + dy * dy < 0.000015) return;
+
+        drawSegment(state.lastPt, pt, state.tool, state.color, state.size);
+        if (state.activeStroke) state.activeStroke.points.push(pt);
+        sendP2P({ type: 'stroke_move', pt });
+        state.lastPt = pt;
+      }
+
+      function onPointerUp() {
+        if (!state.isDrawing) return;
+        state.isDrawing = false;
+        state.lastPt = null;
+        state.activeStroke = null;
+        sendP2P({ type: 'stroke_end' });
+      }
+
+      function doUndo(fromRemote = false) {
+        if (!fromRemote && !canIDraw()) return;
+        if (state.ops.length === 0) return;
+        state.ops.pop();
+        redrawAllOps();
+        AudioFX.pop();
+        if (!fromRemote) sendP2P({ type: 'draw_undo' });
+      }
+
+      function doClear(fromRemote = false) {
+        if (!fromRemote && !canIDraw()) return;
+        state.ops = [];
+        fillWhite();
+        AudioFX.pop();
+        if (!fromRemote) sendP2P({ type: 'draw_clear' });
+      }
+
+      function spawnReaction(text, fromRemote = false) {
+        const bubble = document.createElement('div');
+        bubble.className = 'reaction-bubble';
+        bubble.textContent = text;
+        bubble.style.left = `${12 + Math.random() * 68}%`;
+        els.reactionsLayer.appendChild(bubble);
+        AudioFX.pop();
+        setTimeout(() => bubble.remove(), 1950);
+        if (!fromRemote && state.mode === 'online') {
+          sendP2P({ type: 'reaction', text });
+        }
+      }
+
+      // ================= GAME FLOW =================
+      function clearTimers() {
+        if (state.roundTimerId) { clearInterval(state.roundTimerId); state.roundTimerId = null; }
+        if (state.choiceTimerId) { clearInterval(state.choiceTimerId); state.choiceTimerId = null; }
+        if (state.autoNextTimerId) { clearInterval(state.autoNextTimerId); state.autoNextTimerId = null; }
+      }
+
+      function hideAllOverlays() {
+        els.overlayWordChoice.classList.add('hidden');
+        els.overlayWaiting.classList.add('hidden');
+        els.overlayPrivacy.classList.add('hidden');
+        els.overlayRoundResult.classList.add('hidden');
+      }
+
+      function switchView(viewName) {
+        els.lobbyView.classList.add('hidden');
+        els.gameView.classList.add('hidden');
+        els.summaryView.classList.add('hidden');
+        if (viewName === 'lobby') {
+          els.lobbyView.classList.remove('hidden');
+          els.btnBackLobby.classList.add('hidden');
+        } else if (viewName === 'game') {
+          els.gameView.classList.remove('hidden');
+          els.btnBackLobby.classList.remove('hidden');
+          window.scrollTo(0, 0);
+          requestAnimationFrame(resizeCanvas);
+        } else if (viewName === 'summary') {
+          els.summaryView.classList.remove('hidden');
+          els.btnBackLobby.classList.remove('hidden');
+        }
+        updateConnectionBadge();
+      }
+
+      function getDrawerName() {
+        const p = state.players.find((x) => x.id === state.drawerId);
+        return p ? p.name : '画手';
+      }
+
+      function getLocalGuesserName() {
+        const p = state.players.find((x) => x.id !== state.drawerId);
+        return p ? p.name : '猜词者';
+      }
+
+      function startGame(mode) {
+        clearTimers();
+        state.mode = mode;
+        state.myName = els.inputMyName.value.trim() || '灵魂画手';
+        saveStorage();
+
+        if (mode === 'local') {
+          readLobbySettings();
+          state.isHost = true;
+          state.myId = 'host';
+          const broName = els.inputBroName.value.trim() || '好兄弟';
+          state.players = [
+            { id: 'host', name: state.myName, score: 0, isHost: true, guessedThisRound: false },
+            { id: 'local_p2', name: broName, score: 0, isHost: false, guessedThisRound: false }
+          ];
+        } else if (mode === 'solo') {
+          readLobbySettings();
+          state.isHost = true;
+          state.myId = 'host';
+          state.players = [{ id: 'host', name: state.myName, score: 0, isHost: true, guessedThisRound: false }];
+        } else if (mode === 'online' && state.isHost) {
+          readLobbySettings();
+          state.players.forEach((p) => { p.score = 0; p.guessedThisRound = false; });
+        }
+
+        state.currentRound = 1;
+        state.gallery = [];
+        state.usedWords.clear();
+        state.ops = [];
+        els.chatMessages.innerHTML = '';
+
+        els.modeBadgeSmall.textContent =
+          mode === 'online' ? `🌐 ${state.players.length}人联机` : mode === 'local' ? '👥 本地双人' : '🎨 单人画板';
+
+        switchView('game');
+        renderPlayers();
+
+        if (mode === 'solo') {
+          els.btnSoloNextWord.classList.remove('hidden');
+          els.btnSkipRound.classList.add('hidden');
+          els.drawingToolbar.classList.remove('hidden');
+          state.phase = 'drawing';
+          startSoloWord();
+          addSystemChat('🎨 欢迎进入自由画板！你可以随意涂鸦，或跟着顶部随机题目练习画技。');
+        } else if (mode === 'local') {
+          els.btnSoloNextWord.classList.add('hidden');
+          els.btnSkipRound.classList.remove('hidden');
+          addSystemChat(`👥 本地双人开局！共 ${state.settings.rounds} 回合，回合结束自动切下一轮！`);
+          initRound();
+        } else if (mode === 'online' && state.isHost) {
+          els.btnSoloNextWord.classList.add('hidden');
+          els.btnSkipRound.classList.remove('hidden');
+          broadcastFromHost({ type: 'game_start', players: state.players, settings: state.settings });
+          addSystemChat(`🌐 多人联机开始！共 ${state.players.length} 位玩家，${state.settings.rounds} 回合！`);
+          initRound();
+        }
+      }
+
+      function startSoloWord() {
+        const [wordObj] = pickRandomWords(1);
+        state.currentWordObj = wordObj;
+        state.usedWords.add(wordObj.w);
+        state.ops = [];
+        fillWhite();
+        hideAllOverlays();
+        els.badgeRound.textContent = '自由热身';
+        els.badgeRole.textContent = '画手练习';
+        els.wordLabel.textContent = '参考题目:';
+        els.wordDisplay.textContent = wordObj.w;
+        els.wordCategoryBadge.textContent = CATEGORY_NAMES[wordObj.c] || '词库';
+        els.wordCategoryBadge.classList.remove('hidden');
+        els.btnRevealHint.classList.add('hidden');
+        els.timerText.textContent = '不限时';
+        els.timerBox.classList.remove('timer-urgent');
+      }
+
+      function initRound() {
+        clearTimers();
+        if (state.players.length === 0) return;
+        const drawerIdx = (state.currentRound - 1) % state.players.length;
+        state.drawerId = state.players[drawerIdx].id;
+        state.players.forEach((p) => (p.guessedThisRound = false));
+        state.guessedCountThisRound = 0;
+
+        state.phase = 'choosing';
+        state.ops = [];
+        state.revealedIndices = [];
+        state.currentWordObj = null;
+        fillWhite();
+        hideAllOverlays();
+        renderPlayers();
+        updateTopBar();
+
+        if (state.mode === 'online' && state.isHost) {
+          const choices = pickRandomWords(state.settings.choiceCount || 3);
+          state.peers.forEach((peer, peerId) => {
+            sendToPeer(peerId, {
+              type: 'round_init',
+              round: state.currentRound,
+              drawerId: state.drawerId,
+              players: state.players,
+              settings: state.settings,
+              choices: peerId === state.drawerId ? choices : null
+            });
+          });
+          if (state.drawerId === 'host') {
+            showWordChoiceOverlay(choices);
+          } else {
+            els.waitingTitle.textContent = `【${getDrawerName()}】正在选词...`;
+            els.overlayWaiting.classList.remove('hidden');
+          }
+        } else if (state.mode === 'local') {
+          els.privacyTitle.textContent = `第 ${state.currentRound} 回合 · 轮到【${getDrawerName()}】画画`;
+          els.privacyDesc.textContent = `请把屏幕交给【${getDrawerName()}】，【${getLocalGuesserName()}】先转过头别偷看哦！`;
+          els.overlayPrivacy.classList.remove('hidden');
+        }
+      }
+
+      function showWordChoiceOverlay(choices) {
+        els.overlayWordChoice.classList.remove('hidden');
+        els.wordChoiceTitle.textContent = `轮到【${getDrawerName()}】画画！请选一题`;
+        els.wordChoiceButtons.innerHTML = '';
+
+        choices.forEach((item) => {
+          const btn = document.createElement('button');
+          btn.className = 'comic-btn w-full py-2.5 px-3.5 rounded-xl bg-amber-50 hover:bg-amber-200 text-left flex items-center justify-between gap-2';
+          btn.innerHTML = `
+            <div class="min-w-0">
+              <div class="text-sm sm:text-base font-extrabold text-slate-900 truncate">${escapeHtml(item.w)}</div>
+              <div class="text-xs text-slate-500 truncate">${escapeHtml(item.h)}</div>
+            </div>
+            <span class="px-2 py-0.5 rounded-md bg-white border border-slate-800 text-[11px] font-bold shrink-0">${CATEGORY_NAMES[item.c] || '词库'}</span>
+          `;
+          btn.addEventListener('click', () => selectWord(item));
+          els.wordChoiceButtons.appendChild(btn);
+        });
+
+        let sec = 12;
+        els.wordChoiceCountdown.textContent = sec;
+        clearTimers();
+        state.choiceTimerId = setInterval(() => {
+          sec--;
+          els.wordChoiceCountdown.textContent = Math.max(0, sec);
+          if (sec <= 0) {
+            clearInterval(state.choiceTimerId);
+            state.choiceTimerId = null;
+            selectWord(choices[0]);
+          }
+        }, 1000);
+      }
+
+      function selectWord(wordObj) {
+        clearTimers();
+        state.currentWordObj = wordObj;
+        state.usedWords.add(wordObj.w);
+        if (state.mode === 'online') {
+          if (state.isHost) {
+            broadcastFromHost({
+              type: 'drawing_start',
+              wordLen: wordObj.w.length,
+              wordCat: wordObj.c,
+              wordHint: wordObj.h,
+              drawerId: state.drawerId,
+              duration: state.settings.duration
+            });
+            beginDrawingPhase();
+          } else {
+            sendToHost({ type: 'word_selected', wordObj });
+          }
+        } else {
+          beginDrawingPhase();
+        }
+      }
+
+      function beginDrawingPhase() {
+        clearTimers();
+        hideAllOverlays();
+        window.scrollTo(0, 0);
+        state.phase = 'drawing';
+        state.timeLeft = state.settings.duration;
+        state.revealedIndices = [];
+        updateTopBar();
+        updateWordDisplay();
+
+        if (amIDrawer()) {
+          els.drawingToolbar.classList.remove('hidden');
+          els.canvas.style.cursor = 'crosshair';
+        } else {
+          els.drawingToolbar.classList.add('hidden');
+          els.canvas.style.cursor = 'default';
+        }
+
+        if (state.mode === 'online' && amIDrawer()) {
+          els.chatInput.placeholder = '你是画手，可以发消息互动（别剧透答案哦）';
+        } else {
+          els.chatInput.placeholder = state.mode === 'local'
+            ? `【${getLocalGuesserName()}】在这里输入猜词答案...`
+            : '在这里输入你猜的词，越快分越高！';
+        }
+
+        addSystemChat(`🎨 第 ${state.currentRound} 回合开始！由【${getDrawerName()}】作画，题目共 ${state.currentWordObj.w.length} 个字。`);
+
+        els.timerBox.classList.remove('timer-urgent');
+        els.timerText.textContent = `${state.timeLeft}s`;
+
+        // Host or Local runs authoritative countdown
+        if (state.mode === 'local' || (state.mode === 'online' && state.isHost)) {
+          state.roundTimerId = setInterval(() => {
+            state.timeLeft--;
+            els.timerText.textContent = `${Math.max(0, state.timeLeft)}s`;
+
+            let clueMsg = '';
+            if (state.settings.autoHint !== false && state.timeLeft === Math.floor(state.settings.duration / 2) && state.currentWordObj && state.currentWordObj.h) {
+              clueMsg = `💡 线索提示：${state.currentWordObj.h}`;
+              addSystemChat(clueMsg);
+            }
+            if (state.timeLeft <= 10 && state.timeLeft > 0) {
+              els.timerBox.classList.add('timer-urgent');
+              AudioFX.tick();
+            }
+
+            if (state.mode === 'online' && state.isHost) {
+              broadcastFromHost({ type: 'timer_sync', timeLeft: state.timeLeft, clueMsg });
+            }
+
+            if (state.timeLeft <= 0) {
+              clearTimers();
+              hostEndRound(false, '时间到！');
+            }
+          }, 1000);
+        }
+      }
+
+      function updateTopBar() {
+        els.badgeRound.textContent = `第 ${state.currentRound} / ${state.settings.rounds} 回合`;
+        if (state.mode === 'online') {
+          if (amIDrawer()) {
+            els.badgeRole.textContent = '🖌️ 你来画';
+            els.badgeRole.className = 'px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 border border-blue-300 text-xs font-extrabold';
+          } else {
+            els.badgeRole.textContent = `🔍 猜 ${getDrawerName()} 的画`;
+            els.badgeRole.className = 'px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-extrabold';
+          }
+        } else if (state.mode === 'local') {
+          els.badgeRole.textContent = `🖌️ ${getDrawerName()} 画 · ${getLocalGuesserName()} 猜`;
+          els.badgeRole.className = 'px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 border border-rose-300 text-xs font-extrabold';
+        }
+      }
+
+      function getMaskedWordString() {
+        if (!state.currentWordObj) return '';
+        return state.currentWordObj.w
+          .split('')
+          .map((ch, i) => (state.revealedIndices.includes(i) ? ch : '＿'))
+          .join(' ');
+      }
+
+      function updateWordDisplay() {
+        if (!state.currentWordObj) {
+          els.wordLabel.textContent = '题目:';
+          els.wordDisplay.textContent = '选词中...';
+          els.wordCategoryBadge.classList.add('hidden');
+          els.btnRevealHint.classList.add('hidden');
+          return;
+        }
+        const word = state.currentWordObj.w;
+        els.wordCategoryBadge.textContent = CATEGORY_NAMES[state.currentWordObj.c] || '词库';
+        els.wordCategoryBadge.classList.remove('hidden');
+
+        if (state.mode === 'online' && amIDrawer()) {
+          els.wordLabel.textContent = '你要画:';
+          els.wordDisplay.textContent = word;
+          els.btnRevealHint.classList.remove('hidden');
+          els.btnRevealHint.textContent = '提示+1字';
+        } else {
+          els.wordLabel.textContent = `${word.length}个字:`;
+          els.wordDisplay.textContent = getMaskedWordString();
+          if (state.mode === 'local') {
+            els.btnRevealHint.classList.remove('hidden');
+            els.btnRevealHint.textContent = '提示+1字';
+          } else {
+            els.btnRevealHint.classList.add('hidden');
+          }
+        }
+      }
+
+      function revealOneHintChar() {
+        if (!state.currentWordObj || state.phase !== 'drawing') return;
+        if (state.mode === 'online' && !state.isHost) {
+          sendToHost({ type: 'hint_reveal' });
+          return;
+        }
+        const word = state.currentWordObj.w;
+        const hidden = [];
+        for (let i = 0; i < word.length; i++) {
+          if (!state.revealedIndices.includes(i)) hidden.push(i);
+        }
+        if (hidden.length <= 1) {
+          showToast('已经提示得够多啦！', 'warn');
+          return;
+        }
+        const pick = hidden[Math.floor(Math.random() * hidden.length)];
+        state.revealedIndices.push(pick);
+        const sysMsg = `💡 画手透露了第 ${pick + 1} 个字：「${word[pick]}」`;
+        updateWordDisplay();
+        addSystemChat(sysMsg);
+        AudioFX.pop();
+        if (state.mode === 'online' && state.isHost) {
+          broadcastFromHost({
+            type: 'hint_reveal',
+            revealedIndices: state.revealedIndices,
+            maskedWord: getMaskedWordString(),
+            sysMsg
+          });
+        }
+      }
+
+      function renderPlayers() {
+        els.playersList.innerHTML = '';
+        const sorted = [...state.players].sort((a, b) => b.score - a.score);
+        sorted.forEach((p, idx) => {
+          const isDrawer = p.id === state.drawerId;
+          const row = document.createElement('div');
+          row.className = `flex items-center justify-between p-2 rounded-xl border-2 ${
+            isDrawer ? 'border-blue-600 bg-blue-50/70' : p.guessedThisRound ? 'border-emerald-400 bg-emerald-50/70' : 'border-slate-200 bg-slate-50'
+          }`;
+          row.innerHTML = `
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-7 h-7 rounded-full border-2 border-slate-800 flex items-center justify-center font-extrabold text-xs shrink-0 ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}">${escapeHtml(p.name.slice(0, 1))}</div>
+              <div class="min-w-0">
+                <div class="text-xs font-extrabold text-slate-900 truncate flex items-center gap-1">
+                  <span>${escapeHtml(p.name)}${p.isHost ? ' 👑' : ''}</span>
+                  ${isDrawer ? '<span class="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px]">画手</span>' : ''}
+                  ${!isDrawer && p.guessedThisRound ? '<span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px]">已猜中</span>' : ''}
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="font-extrabold text-xs sm:text-sm text-slate-900 tabular-nums">${p.score} 分</span>
+              ${state.mode === 'online' && state.isHost && !p.isHost
+                ? `<button data-kick="${p.id}" class="kick-btn px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 hover:bg-rose-200 text-[10px] font-extrabold" title="踢出房间">踢</button>`
+                : ''}
+            </div>
+          `;
+          els.playersList.appendChild(row);
+        });
+      }
+
+      // ================= CHAT & MULTI-GUESSER VALIDATION =================
+      function addSystemChat(text) {
+        const div = document.createElement('div');
+        div.className = 'text-center text-xs font-bold text-slate-500 bg-slate-100 rounded-lg py-1.5 px-2.5';
+        div.textContent = text;
+        els.chatMessages.appendChild(div);
+        els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+      }
+
+      function addChatBubble(sender, text, isHighlight = false) {
+        const div = document.createElement('div');
+        div.className = isHighlight
+          ? 'p-2 rounded-xl bg-emerald-100 border border-emerald-400 text-emerald-900 text-xs font-extrabold'
+          : 'p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-xs';
+        div.innerHTML = `<span class="font-extrabold text-slate-900 mr-1">${escapeHtml(sender)}:</span><span>${escapeHtml(text)}</span>`;
+        els.chatMessages.appendChild(div);
+        els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+      }
+
+      // Authoritative chat/guess handler on Host (or Local)
+      function hostProcessChat(senderId, senderName, text) {
+        const clean = text.trim();
+        if (!clean) return;
+
+        if (state.mode === 'solo' || state.phase !== 'drawing' || !state.currentWordObj) {
+          addChatBubble(senderName, clean);
+          if (state.mode === 'online') broadcastFromHost({ type: 'chat_broadcast', sender: senderName, text: clean, isHighlight: false });
+          return;
+        }
+
+        const answer = state.currentWordObj.w.trim();
+        const isSenderDrawer = state.mode === 'online' && senderId === state.drawerId;
+
+        // Drawer can NEVER score or spoil the answer
+        if (isSenderDrawer) {
+          if (clean.toLowerCase().includes(answer.toLowerCase())) {
+            if (senderId === 'host') showToast('你是画手，不能在聊天里剧透答案哦！', 'warn');
+            return;
+          }
+          addChatBubble(senderName, clean);
+          AudioFX.pop();
+          broadcastFromHost({ type: 'chat_broadcast', sender: senderName, text: clean, isHighlight: false });
+          return;
+        }
+
+        const guesser = state.players.find((p) => p.id === senderId);
+        // Already guessed this round? Prevent spoiling
+        if (guesser && guesser.guessedThisRound) {
+          if (clean.toLowerCase().includes(answer.toLowerCase())) return;
+          addChatBubble(senderName, clean);
+          if (state.mode === 'online') broadcastFromHost({ type: 'chat_broadcast', sender: senderName, text: clean, isHighlight: false });
+          return;
+        }
+
+        // Exact match!
+        if (clean.toLowerCase() === answer.toLowerCase()) {
+          state.guessedCountThisRound++;
+          const ratio = Math.max(0.2, state.timeLeft / state.settings.duration);
+          const firstBonus = state.guessedCountThisRound === 1 ? 15 : 0;
+          const guesserPts = Math.round(40 + ratio * 50) + firstBonus;
+          const drawerPts = Math.round(20 + ratio * 30);
+
+          if (guesser) {
+            guesser.score += guesserPts;
+            guesser.guessedThisRound = true;
+          }
+          const drawer = state.players.find((p) => p.id === state.drawerId);
+          if (drawer) drawer.score += drawerPts;
+
+          const winText = `🎉 猜中了答案！(+${guesserPts} 分${firstBonus ? '，首杀加成!' : ''})`;
+          addChatBubble(senderName, winText, true);
+          AudioFX.correct();
+          renderPlayers();
+
+          if (state.mode === 'online') {
+            broadcastFromHost({
+              type: 'chat_broadcast',
+              sender: senderName,
+              text: winText,
+              isHighlight: true,
+              players: state.players
+            });
+          }
+          checkAllGuessersDone();
+          return;
+        }
+
+        // Close guess feedback
+        const hasOverlap = state.settings.closeGuessHint !== false && answer.split('').some((ch) => clean.includes(ch));
+        const displayMsg = hasOverlap ? `${clean}（🔥 很接近了！）` : clean;
+        addChatBubble(senderName, displayMsg);
+        AudioFX.pop();
+        if (state.mode === 'online') {
+          broadcastFromHost({ type: 'chat_broadcast', sender: senderName, text: displayMsg, isHighlight: false });
+        }
+      }
+
+      function checkAllGuessersDone() {
+        const guessers = state.players.filter((p) => p.id !== state.drawerId);
+        const allGuessed = guessers.length > 0 && guessers.every((p) => p.guessedThisRound);
+        if (allGuessed) {
+          hostEndRound(true, guessers.length === 1 ? `${guessers[0].name} 猜对啦！` : '全员都猜中啦！');
+        }
+      }
+
+      function hostEndRound(guessedAny, titleText) {
+        clearTimers();
+        state.phase = 'round_end';
+        const word = state.currentWordObj ? state.currentWordObj.w : '未知';
+        const guessedNames = state.players.filter((p) => p.guessedThisRound).map((p) => p.name);
+        const pointsText = guessedNames.length > 0
+          ? `本轮猜中：${guessedNames.join('、')}`
+          : '无人猜中，下一回合继续加油！';
+        const isLast = state.currentRound >= state.settings.rounds;
+
+        if (state.mode === 'online' && state.isHost) {
+          broadcastFromHost({
+            type: 'round_end',
+            word,
+            title: titleText,
+            pointsText,
+            guessedAny: guessedNames.length > 0,
+            players: state.players,
+            isLast
+          });
+        }
+        showRoundResultUI(word, titleText, pointsText, guessedNames.length > 0, isLast);
+      }
+
+      function showRoundResultUI(word, titleText, pointsText, guessedAny, isLast) {
+        clearTimers();
+        state.phase = 'round_end';
+        renderPlayers();
+
+        // Save snapshot to gallery
+        try {
+          state.gallery.push({
+            round: state.currentRound,
+            word,
+            drawerName: getDrawerName(),
+            guessed: guessedAny,
+            dataUrl: els.canvas.toDataURL('image/png')
+          });
+        } catch (e) {}
+
+        els.overlayRoundResult.classList.remove('hidden');
+        els.roundResultIcon.textContent = guessedAny ? '🎉' : '⏰';
+        els.roundResultTitle.textContent = titleText;
+        els.roundResultWord.textContent = word;
+        els.roundResultPoints.textContent = pointsText;
+
+        if (guessedAny) {
+          AudioFX.correct();
+          if (typeof confetti === 'function') confetti({ particleCount: 70, spread: 65, origin: { y: 0.65 } });
+        } else {
+          AudioFX.fail();
+        }
+
+        // AUTO-ADVANCE COUNTDOWN (Requirement 3: no waiting for host!)
+        let sec = clampInt(state.settings.autoNextDelay, 2, 15, 4);
+        const nextLabel = isLast ? '查看最终结算与画廊' : '进入下一回合';
+        els.autoNextBanner.textContent = `${sec} 秒后自动${nextLabel}...`;
+        els.btnNextRound.classList.toggle('hidden', state.mode === 'online' && !state.isHost);
+        els.btnNextRound.textContent = `立即${nextLabel}`;
+
+        state.autoNextTimerId = setInterval(() => {
+          sec--;
+          if (sec > 0) {
+            els.autoNextBanner.textContent = `${sec} 秒后自动${nextLabel}...`;
+          } else {
+            clearInterval(state.autoNextTimerId);
+            state.autoNextTimerId = null;
+            if (state.mode === 'local' || (state.mode === 'online' && state.isHost)) {
+              proceedAfterRound();
+            }
+          }
+        }, 1000);
+      }
+
+      function proceedAfterRound() {
+        clearTimers();
+        if (state.currentRound >= state.settings.rounds) {
+          if (state.mode === 'online' && state.isHost) {
+            broadcastFromHost({ type: 'game_summary', players: state.players });
+          }
+          showSummary();
+          return;
+        }
+        state.currentRound++;
+        initRound();
+      }
+
+      function showSummary() {
+        clearTimers();
+        hideAllOverlays();
+        state.phase = 'summary';
+        switchView('summary');
+        AudioFX.fanfare();
+        if (typeof confetti === 'function') confetti({ particleCount: 120, spread: 90, origin: { y: 0.55 } });
+
+        const sorted = [...state.players].sort((a, b) => b.score - a.score);
+        if (sorted.length >= 2 && sorted[0].score === sorted[1].score) {
+          els.summaryWinnerTitle.textContent = '🤝 势均力敌，并列第一！';
+        } else if (sorted.length > 0) {
+          els.summaryWinnerTitle.textContent = `🏆 冠军：${sorted[0].name}！`;
+        }
+
+        els.summaryScores.innerHTML = sorted.map((p, idx) => `
+          <div class="comic-card-sm px-5 py-3.5 bg-white min-w-[130px]">
+            <div class="text-xs font-bold text-slate-500">#${idx + 1} ${escapeHtml(p.name)}</div>
+            <div class="text-2xl font-extrabold ${idx === 0 ? 'text-amber-500' : 'text-blue-600'} mt-1">${p.score} 分</div>
+          </div>
+        `).join('');
+
+        els.btnRematch.classList.toggle('hidden', state.mode === 'online' && !state.isHost);
+
+        els.galleryGrid.innerHTML = '';
+        state.gallery.forEach((item) => {
+          const card = document.createElement('div');
+          card.className = 'comic-card-sm overflow-hidden bg-white flex flex-col';
+          card.innerHTML = `
+            <div class="bg-white border-b-2 border-slate-200 aspect-[4/3] overflow-hidden">
+              <img src="${item.dataUrl}" alt="${escapeHtml(item.word)}" class="w-full h-full object-contain" />
+            </div>
+            <div class="p-3 flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <div class="text-sm font-extrabold text-slate-900 truncate">第${item.round}轮：${escapeHtml(item.word)}</div>
+                <div class="text-xs text-slate-500">画手：${escapeHtml(item.drawerName)} · ${item.guessed ? '✅ 已猜中' : '⏳ 未猜中'}</div>
+              </div>
+              <a href="${item.dataUrl}" download="灵魂画作_${item.round}_${item.word}.png" class="comic-btn p-2 rounded-lg bg-emerald-100 text-emerald-800 shrink-0" title="保存画作">
+                <i data-lucide="download" class="w-4 h-4"></i>
+              </a>
+            </div>
+          `;
+          els.galleryGrid.appendChild(card);
+        });
+        if (window.lucide) lucide.createIcons();
+      }
+
+      // ================= PALETTE & TOOLS =================
+      function initPalette() {
+        els.colorPalette.innerHTML = '';
+        PALETTE.forEach((hex, idx) => {
+          const btn = document.createElement('button');
+          btn.className = `color-swatch ${idx === 0 ? 'active' : ''}`;
+          btn.style.backgroundColor = hex;
+          btn.title = hex;
+          btn.addEventListener('click', () => {
+            state.color = hex;
+            if (state.tool === 'eraser') setTool('pen');
+            document.querySelectorAll('.color-swatch').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+          });
+          els.colorPalette.appendChild(btn);
+        });
+      }
+
+      function setTool(toolName) {
+        state.tool = toolName;
+        [els.toolPen, els.toolMarker, els.toolFill, els.toolEraser].forEach((b) => b.classList.remove('active'));
+        if (toolName === 'pen') els.toolPen.classList.add('active');
+        if (toolName === 'marker') els.toolMarker.classList.add('active');
+        if (toolName === 'fill') els.toolFill.classList.add('active');
+        if (toolName === 'eraser') els.toolEraser.classList.add('active');
+      }
+
+      // ================= EVENT LISTENERS =================
+      function bindEvents() {
+        // Rules modal
+        els.btnRules.addEventListener('click', () => els.rulesModal.classList.remove('hidden'));
+        els.btnCloseRules.addEventListener('click', () => els.rulesModal.classList.add('hidden'));
+        els.btnCloseRulesBottom.addEventListener('click', () => els.rulesModal.classList.add('hidden'));
+        els.rulesModal.addEventListener('click', (e) => { if (e.target === els.rulesModal) els.rulesModal.classList.add('hidden'); });
+
+        // Host Settings modal
+        els.btnRoomSettings.addEventListener('click', () => {
+          els.modalMaxPlayers.value = String(state.settings.maxPlayers);
+          els.modalRounds.value = String(state.settings.rounds);
+          els.modalTime.value = String(state.settings.duration);
+          els.modalCategory.value = state.settings.category;
+          els.modalChoiceCount.value = String(state.settings.choiceCount || 3);
+          els.modalAutoNextDelay.value = String(state.settings.autoNextDelay || 4);
+          els.modalChkAutoHint.checked = state.settings.autoHint !== false;
+          els.modalChkCloseGuess.checked = state.settings.closeGuessHint !== false;
+          els.modalChkAllowSkip.checked = state.settings.allowSkip !== false;
+          updateSettingsModalRoster();
+          els.settingsModal.classList.remove('hidden');
+        });
+        els.btnCloseSettings.addEventListener('click', () => els.settingsModal.classList.add('hidden'));
+        els.settingsModal.addEventListener('click', (e) => { if (e.target === els.settingsModal) els.settingsModal.classList.add('hidden'); });
+
+        els.btnApplySettings.addEventListener('click', () => {
+          const newMax = clampInt(els.modalMaxPlayers.value, 2, 20, 4);
+          if (newMax < state.players.length) {
+            showToast(`当前已有 ${state.players.length} 人，上限不能小于当前人数`, 'warn');
+            return;
+          }
+          state.settings.maxPlayers = newMax;
+          state.settings.rounds = clampInt(els.modalRounds.value, 1, 50, 6);
+          state.settings.duration = clampInt(els.modalTime.value, 15, 300, 80);
+          state.settings.category = els.modalCategory.value;
+          state.settings.choiceCount = clampInt(els.modalChoiceCount.value, 2, 5, 3);
+          state.settings.autoNextDelay = clampInt(els.modalAutoNextDelay.value, 2, 15, 4);
+          state.settings.autoHint = !!els.modalChkAutoHint.checked;
+          state.settings.closeGuessHint = !!els.modalChkCloseGuess.checked;
+          state.settings.allowSkip = !!els.modalChkAllowSkip.checked;
+          // Sync lobby inputs
+          els.selectMaxPlayers.value = String(state.settings.maxPlayers);
+          els.selectRounds.value = String(state.settings.rounds);
+          els.selectTime.value = String(state.settings.duration);
+          els.selectCategory.value = state.settings.category;
+          els.selectChoiceCount.value = String(state.settings.choiceCount);
+          els.inputAutoNextDelay.value = String(state.settings.autoNextDelay);
+          els.chkAutoHint.checked = state.settings.autoHint;
+          els.chkCloseGuess.checked = state.settings.closeGuessHint;
+          els.chkAllowSkip.checked = state.settings.allowSkip;
+
+          updateTopBar();
+          renderLobbyRoster();
+          broadcastRoomSync(`⚙️ 房主更新了设置：上限 ${state.settings.maxPlayers} 人 / 共 ${state.settings.rounds} 回合 / ${state.settings.duration} 秒`);
+          showToast('房间设置已保存并同步给所有人！', 'success');
+          els.settingsModal.classList.add('hidden');
+        });
+
+        els.btnModalCreateOffer.addEventListener('click', () => createHostInvite('modal'));
+        els.btnModalCopyOffer.addEventListener('click', () => copyText(els.modalOfferText.value, '邀请码已复制！'));
+        els.btnModalAcceptAnswer.addEventListener('click', () => acceptGuestAnswer('modal'));
+
+        // Delegated kick button handler (works in lobby, scoreboard, and settings modal)
+        document.addEventListener('click', (e) => {
+          const kickBtn = e.target.closest('.kick-btn');
+          if (kickBtn) {
+            const targetId = kickBtn.getAttribute('data-kick');
+            if (targetId) kickPlayer(targetId);
+          }
+        });
+
+        // Mute
+        els.btnMute.addEventListener('click', () => {
+          AudioFX.muted = !AudioFX.muted;
+          els.muteIcon.setAttribute('data-lucide', AudioFX.muted ? 'volume-x' : 'volume-2');
+          if (window.lucide) lucide.createIcons();
+          showToast(AudioFX.muted ? '已静音' : '音效已开启', 'info');
+        });
+
+        // Back to lobby
+        els.btnBackLobby.addEventListener('click', () => {
+          clearTimers();
+          hideAllOverlays();
+          closeAllP2P();
+          state.mode = 'lobby';
+          state.phase = 'idle';
+          initHostLobbyRoster();
+          switchView('lobby');
+        });
+
+        // Nickname
+        els.btnRandomName.addEventListener('click', () => {
+          const pick = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
+          els.inputMyName.value = pick;
+          state.myName = pick;
+          saveStorage();
+          if (state.isHost) initHostLobbyRoster();
+          AudioFX.pop();
+        });
+        els.inputMyName.addEventListener('change', () => {
+          state.myName = els.inputMyName.value.trim() || '灵魂画手';
+          saveStorage();
+          if (state.isHost) initHostLobbyRoster();
+        });
+
+        // Lobby selects update roster count live
+        [els.selectMaxPlayers, els.selectRounds, els.selectTime, els.selectCategory, els.selectChoiceCount, els.inputAutoNextDelay, els.chkAutoHint, els.chkCloseGuess, els.chkAllowSkip].forEach((sel) => {
+          sel.addEventListener('change', () => {
+            readLobbySettings();
+            renderLobbyRoster();
+            if (state.isHost && state.players.length > 1) {
+              broadcastRoomSync();
+            }
+          });
+        });
+
+        // Host / Join tabs
+        els.tabHost.addEventListener('click', () => {
+          els.tabHost.className = 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold bg-blue-600 text-white transition';
+          els.tabJoin.className = 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold text-slate-700 hover:text-slate-900 transition';
+          els.panelHost.classList.remove('hidden');
+          els.panelJoin.classList.add('hidden');
+        });
+        els.tabJoin.addEventListener('click', () => {
+          els.tabJoin.className = 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold bg-blue-600 text-white transition';
+          els.tabHost.className = 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold text-slate-700 hover:text-slate-900 transition';
+          els.panelJoin.classList.remove('hidden');
+          els.panelHost.classList.add('hidden');
+        });
+
+        // Quick Room (PeerJS 6-digit) buttons
+        els.btnCreateQuickRoom.addEventListener('click', createQuickPeerRoom);
+        els.btnCopyRoomCode.addEventListener('click', () => copyText(state.roomCode, `房间号 ${state.roomCode} 已复制！`));
+        els.btnCopyRoomLink.addEventListener('click', () => copyText(buildRoomInviteLink(state.roomCode), '邀请链接已复制！发微信/QQ 点开就能进房'));
+        els.btnModalCopyRoomLink.addEventListener('click', () => copyText(buildRoomInviteLink(state.roomCode), '邀请链接已复制！'));
+        els.btnJoinQuickRoom.addEventListener('click', joinQuickPeerRoom);
+        els.inputJoinRoomCode.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); joinQuickPeerRoom(); }
+        });
+
+        // P2P Lobby buttons (Manual fallback)
+        els.btnCreateOffer.addEventListener('click', () => createHostInvite('lobby'));
+        els.btnCancelInvite.addEventListener('click', cancelPendingInvite);
+        els.btnCopyOffer.addEventListener('click', () => copyText(els.textareaHostOffer.value, '邀请码已复制！快发给好友'));
+        els.btnAcceptAnswer.addEventListener('click', () => acceptGuestAnswer('lobby'));
+        els.btnHostStartOnline.addEventListener('click', () => {
+          if (state.players.length < 2) {
+            showToast('至少需要 2 位玩家才能开始游戏', 'warn');
+            return;
+          }
+          startGame('online');
+        });
+        els.btnGenerateAnswer.addEventListener('click', generateGuestAnswer);
+        els.btnCopyAnswer.addEventListener('click', () => copyText(els.textareaJoinAnswer.value, '应答码已复制！发回给房主吧'));
+
+        // Local & Solo start
+        els.btnStartLocal2P.addEventListener('click', () => startGame('local'));
+        els.btnStartSolo.addEventListener('click', () => startGame('solo'));
+
+        // Custom words
+        els.btnAddCustomWord.addEventListener('click', addCustomWord);
+        els.inputCustomWord.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); addCustomWord(); }
+        });
+        els.customWordList.addEventListener('click', (e) => {
+          if (e.target.classList.contains('del-custom-word')) {
+            const idx = parseInt(e.target.getAttribute('data-idx'), 10);
+            state.customWords.splice(idx, 1);
+            saveStorage();
+            renderCustomWords();
+          }
+        });
+
+        // Canvas pointer events
+        els.canvas.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+        window.addEventListener('resize', resizeCanvas);
+
+        // Toolbar controls
+        els.toolPen.addEventListener('click', () => setTool('pen'));
+        els.toolMarker.addEventListener('click', () => setTool('marker'));
+        els.toolFill.addEventListener('click', () => setTool('fill'));
+        els.toolEraser.addEventListener('click', () => setTool('eraser'));
+        els.btnUndo.addEventListener('click', () => doUndo(false));
+        els.btnClear.addEventListener('click', () => doClear(false));
+        els.btnDownloadArt.addEventListener('click', () => {
+          const link = document.createElement('a');
+          link.download = `灵魂画作_${Date.now()}.png`;
+          link.href = els.canvas.toDataURL('image/png');
+          link.click();
+          showToast('已保存当前画作 PNG！', 'success');
+        });
+
+        document.querySelectorAll('.size-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.size = parseInt(btn.getAttribute('data-size'), 10);
+            document.querySelectorAll('.size-btn').forEach((b) => b.classList.remove('bg-white', 'shadow-sm'));
+            btn.classList.add('bg-white', 'shadow-sm');
+          });
+        });
+
+        // Reactions
+        document.querySelectorAll('.react-btn').forEach((btn) => {
+          btn.addEventListener('click', () => spawnReaction(btn.getAttribute('data-react'), false));
+        });
+
+        // Game overlays & buttons
+        els.btnPrivacyReady.addEventListener('click', () => {
+          els.overlayPrivacy.classList.add('hidden');
+          showWordChoiceOverlay(pickRandomWords(state.settings.choiceCount || 3));
+        });
+
+        els.btnRevealHint.addEventListener('click', revealOneHintChar);
+        els.btnSoloNextWord.addEventListener('click', () => { AudioFX.pop(); startSoloWord(); });
+
+        els.btnSkipRound.addEventListener('click', () => {
+          if (state.phase !== 'drawing') return;
+          if (state.settings.allowSkip === false && !(state.mode === 'online' && state.isHost)) {
+            showToast('房主已设置禁止跳过本回合', 'warn');
+            return;
+          }
+          if (state.mode === 'online') {
+            if (!amIDrawer() && !state.isHost) {
+              showToast('仅画手或房主可以跳过本回合', 'warn');
+              return;
+            }
+            if (state.isHost) hostEndRound(false, '本回合已跳过');
+            else sendToHost({ type: 'skip_round' });
+          } else {
+            hostEndRound(false, '本回合已跳过');
+          }
+        });
+
+        els.btnNextRound.addEventListener('click', () => {
+          if (state.mode === 'local' || (state.mode === 'online' && state.isHost)) {
+            proceedAfterRound();
+          }
+        });
+
+        // Chat / Guess submit
+        els.chatForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const text = els.chatInput.value.trim();
+          if (!text) return;
+          // Block drawer from spoiling before sending
+          if (state.mode === 'online' && state.phase === 'drawing' && amIDrawer() && state.currentWordObj) {
+            const ans = state.currentWordObj.w.trim().toLowerCase();
+            if (text.toLowerCase().includes(ans)) {
+              showToast('你是画手，不能在聊天里剧透答案哦！', 'warn');
+              return;
+            }
+          }
+          els.chatInput.value = '';
+          if (state.mode === 'online') {
+            if (state.isHost) {
+              hostProcessChat('host', state.myName, text);
+            } else {
+              sendToHost({ type: 'chat', sender: state.myName, text });
+            }
+          } else if (state.mode === 'local') {
+            const guesser = state.players.find((p) => p.id !== state.drawerId);
+            hostProcessChat(guesser ? guesser.id : 'local_p2', guesser ? guesser.name : '猜词者', text);
+          } else {
+            addChatBubble(state.myName, text);
+          }
+        });
+
+        // Summary buttons
+        els.btnRematch.addEventListener('click', () => {
+          if (state.mode === 'online') {
+            if (state.players.length < 2) {
+              showToast('房间人数不足 2 人，请先邀请好友', 'warn');
+              return;
+            }
+            startGame('online');
+          } else {
+            startGame(state.mode);
+          }
+        });
+
+        els.btnSummaryLobby.addEventListener('click', () => {
+          clearTimers();
+          hideAllOverlays();
+          closeAllP2P();
+          state.mode = 'lobby';
+          state.phase = 'idle';
+          initHostLobbyRoster();
+          switchView('lobby');
+        });
+      }
+
+      // ================= BOOT =================
+      window.addEventListener('load', () => {
+        loadStorage();
+        initHostLobbyRoster();
+        initPalette();
+        bindEvents();
+        if (window.lucide) lucide.createIcons();
+
+        // Auto-detect ?room=XXXXXX invite link when deployed on the web
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const roomParam = (params.get('room') || '').replace(/\D/g, '');
+          if (roomParam.length === 6) {
+            els.tabJoin.click();
+            els.inputJoinRoomCode.value = roomParam;
+            showToast(`已自动填入邀请房间号 ${roomParam}，点击「加入房间」即可开黑！`, 'info');
+          }
+        } catch (e) {}
+      });
+    })();
+  </script>
+</body>
+</html>
