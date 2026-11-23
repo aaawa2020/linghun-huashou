@@ -2305,7 +2305,7 @@
 
           case 'hint_reveal':
             if (state.drawerId !== fromPeerId) return;
-            revealOneHintChar();
+            revealOneHintChar(fromPeerId);
             break;
 
           case 'skip_round':
@@ -2445,11 +2445,15 @@
 
           case 'hint_reveal':
             state.revealedIndices = msg.revealedIndices || [];
-            if (msg.maskedWord) {
+            if (msg.maskedWord && !amIDrawer()) {
               els.wordDisplay.textContent = msg.maskedWord;
             }
             if (msg.sysMsg) addSystemChat(msg.sysMsg);
             AudioFX.pop();
+            break;
+
+          case 'toast':
+            showToast(msg.msg, msg.level || 'info');
             break;
 
           case 'timer_sync':
@@ -3079,19 +3083,27 @@
         }
       }
 
-      function revealOneHintChar() {
+      function revealOneHintChar(requesterId = state.myId) {
         if (!state.currentWordObj || state.phase !== 'drawing') return;
-        if (state.mode === 'online' && !state.isHost) {
-          sendToHost({ type: 'hint_reveal' });
-          return;
-        }
         const word = state.currentWordObj.w;
         const hidden = [];
         for (let i = 0; i < word.length; i++) {
           if (!state.revealedIndices.includes(i)) hidden.push(i);
         }
+        if (state.mode === 'online' && !state.isHost) {
+          if (hidden.length <= 1) {
+            showToast('已经提示得够多啦！', 'warn');
+            return;
+          }
+          sendToHost({ type: 'hint_reveal' });
+          return;
+        }
         if (hidden.length <= 1) {
-          showToast('已经提示得够多啦！', 'warn');
+          if (requesterId === state.myId) {
+            showToast('已经提示得够多啦！', 'warn');
+          } else {
+            sendToPeer(requesterId, { type: 'toast', msg: '已经提示得够多啦！', level: 'warn' });
+          }
           return;
         }
         const pick = hidden[Math.floor(Math.random() * hidden.length)];
@@ -3658,7 +3670,7 @@
           showWordChoiceOverlay(pickRandomWords(state.settings.choiceCount || 3));
         });
 
-        els.btnRevealHint.addEventListener('click', revealOneHintChar);
+        els.btnRevealHint.addEventListener('click', () => revealOneHintChar(state.myId));
         els.btnSoloNextWord.addEventListener('click', () => { AudioFX.pop(); startSoloWord(); });
 
         els.btnSkipRound.addEventListener('click', () => {
