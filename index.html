@@ -243,9 +243,7 @@
             <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
               叫上好兄弟们，看看谁才是真正的「灵魂画手」
             </h2>
-            <p class="text-sm sm:text-base text-slate-600 leading-relaxed">
-              支持 <strong>多人 P2P 实时联机</strong>（房主可自由设置人数、局数、限时与踢人，回合结束自动无缝切下一轮），也支持 <strong>同屏双人轮流</strong> 与 <strong>单人画板练习</strong>，内置 120+ 精选爆笑词库与专属梗词。
-            </p>
+
           </div>
 
           <!-- Nickname Quick Card -->
@@ -340,7 +338,7 @@
                     <div class="col-span-2 sm:col-span-1 flex flex-col justify-center gap-1.5 pt-1">
                       <label class="inline-flex items-center gap-1.5 font-bold text-slate-700 cursor-pointer">
                         <input id="chkAutoHint" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
-                        <span>过半自动线索提示</span>
+                        <span>过半无人答对提示首字</span>
                       </label>
                       <label class="inline-flex items-center gap-1.5 font-bold text-slate-700 cursor-pointer">
                         <input id="chkCloseGuess" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
@@ -450,10 +448,22 @@
             <!-- JOIN PANEL -->
             <div id="panelJoin" class="hidden space-y-3.5 pt-1">
               <!-- Quick 6-Digit Room Code Join -->
-              <div class="p-3.5 rounded-xl border-2 border-blue-600 bg-blue-50/50 space-y-2.5">
-                <div class="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
+              <div class="p-3.5 rounded-xl border-2 border-blue-600 bg-blue-50/50 space-y-3">
+                <div class="space-y-1.5">
+                  <label for="inputJoinName" class="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
+                    <i data-lucide="user" class="w-3.5 h-3.5 text-blue-600"></i>
+                    <span>第一步：填写你的玩家昵称（必填）</span>
+                  </label>
+                  <div class="flex gap-2">
+                    <input id="inputJoinName" type="text" maxlength="12" placeholder="输入你的名字或外号..." class="flex-1 min-w-0 px-3 py-2 rounded-xl border-2 border-slate-800 bg-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button id="btnJoinRandomName" class="comic-btn px-3 py-2 rounded-xl bg-amber-200 text-slate-900 text-xs font-extrabold shrink-0" title="随机起名">
+                      <i data-lucide="dices" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="text-xs font-extrabold text-blue-950 flex items-center gap-1.5 pt-1 border-t border-blue-200/80">
                   <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i>
-                  <span>极速加入：输入 6 位房间号直接进房</span>
+                  <span>第二步：输入 6 位房间号直接进房</span>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-2">
                   <input id="inputJoinRoomCode" type="text" inputmode="numeric" maxlength="6" placeholder="输入 6 位房号，如 839241" class="w-full sm:flex-1 min-w-0 px-3 py-2 rounded-xl border-2 border-slate-800 bg-white font-mono text-base font-extrabold tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -503,21 +513,7 @@
             </div>
           </div>
 
-          <!-- 3-Step P2P Mini Guide -->
-          <div class="mt-5 pt-4 border-t-2 border-dashed border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-            <div class="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200">
-              <div class="font-extrabold text-blue-900">① 6 位房号秒进</div>
-              <div class="text-slate-600 mt-0.5">部署到公网后点链接或输房号即连，免复制</div>
-            </div>
-            <div class="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200">
-              <div class="font-extrabold text-amber-900">② 房主随时调控</div>
-              <div class="text-slate-600 mt-0.5">支持 2~8 人、改局数/词库与踢人管理</div>
-            </div>
-            <div class="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
-              <div class="font-extrabold text-emerald-900">③ 全自动切回合</div>
-              <div class="text-slate-600 mt-0.5">每轮结算 4 秒后自动开下一轮，无需催房主</div>
-            </div>
-          </div>
+
         </div>
 
         <!-- Mode 2 & 3: Local 2P + Solo Practice + Custom Words -->
@@ -862,7 +858,7 @@
         <div class="flex flex-wrap gap-3 pt-1 text-xs font-bold text-slate-700">
           <label class="inline-flex items-center gap-1.5 cursor-pointer">
             <input id="modalChkAutoHint" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
-            <span>过半自动线索</span>
+            <span>过半无人答对提示首字</span>
           </label>
           <label class="inline-flex items-center gap-1.5 cursor-pointer">
             <input id="modalChkCloseGuess" type="checkbox" checked class="w-4 h-4 accent-blue-600" />
@@ -909,6 +905,31 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- JOIN ROOM NICKNAME MODAL -->
+  <div id="joinNameModal" class="hidden fixed inset-0 z-[65] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="comic-card p-5 sm:p-6 max-w-sm w-full bg-white space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="user-check" class="w-5 h-5 text-blue-600"></i>
+          <span>请填写你的玩家名称</span>
+        </h3>
+        <button id="btnCloseJoinModal" class="p-1 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <p id="joinModalSubtitle" class="text-xs text-slate-600 font-medium">进入房间前先起个名字，方便兄弟们认出你！</p>
+      <div class="flex gap-2">
+        <input id="inputModalJoinName" type="text" maxlength="12" placeholder="输入你的昵称..." class="flex-1 min-w-0 px-3 py-2 rounded-xl border-2 border-slate-800 bg-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <button id="btnModalRandomName" class="comic-btn px-3 py-2 rounded-xl bg-amber-200 text-slate-900 text-xs font-extrabold shrink-0" title="随机昵称">
+          <i data-lucide="dices" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <button id="btnConfirmJoinWithName" class="comic-btn w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-extrabold">
+        确认昵称并加入房间
+      </button>
     </div>
   </div>
 
@@ -1162,6 +1183,8 @@
         isHost: true,
         myId: 'host',
         myName: '灵魂画手',
+        nameConfirmedByUser: false,
+        pendingJoinAction: null,
         customWords: [],
         settings: {
           maxPlayers: 4,
@@ -1251,6 +1274,14 @@
         displayRoomCode: $('displayRoomCode'),
         btnCopyRoomCode: $('btnCopyRoomCode'),
         btnCopyRoomLink: $('btnCopyRoomLink'),
+        inputJoinName: $('inputJoinName'),
+        btnJoinRandomName: $('btnJoinRandomName'),
+        joinNameModal: $('joinNameModal'),
+        joinModalSubtitle: $('joinModalSubtitle'),
+        inputModalJoinName: $('inputModalJoinName'),
+        btnModalRandomName: $('btnModalRandomName'),
+        btnCloseJoinModal: $('btnCloseJoinModal'),
+        btnConfirmJoinWithName: $('btnConfirmJoinWithName'),
         inputJoinRoomCode: $('inputJoinRoomCode'),
         btnJoinQuickRoom: $('btnJoinQuickRoom'),
         guestWaitingStatus: $('guestWaitingStatus'),
@@ -1418,6 +1449,7 @@
           }
         } catch (e) {}
         els.inputMyName.value = state.myName;
+        if (els.inputJoinName) els.inputJoinName.value = state.myName;
         renderCustomWords();
       }
 
@@ -1852,10 +1884,43 @@
         }
       }
 
-      function joinQuickPeerRoom() {
+      function syncPlayerName(val, markConfirmed = true) {
+        const clean = val.trim().slice(0, 12);
+        if (clean) state.myName = clean;
+        if (markConfirmed && clean) state.nameConfirmedByUser = true;
+        els.inputMyName.value = clean;
+        if (els.inputJoinName) els.inputJoinName.value = clean;
+        if (els.inputModalJoinName) els.inputModalJoinName.value = clean;
+        if (clean) saveStorage();
+      }
+
+      function promptNameBeforeJoin(roomLabel, onConfirm) {
+        state.pendingJoinAction = onConfirm;
+        els.joinModalSubtitle.textContent = roomLabel
+          ? `即将加入房间 ${roomLabel}，请先填写你的玩家名称：`
+          : '进入房间前请先填写你的玩家名称，方便兄弟们认出你！';
+        els.inputModalJoinName.value = els.inputJoinName.value.trim() || els.inputMyName.value.trim() || '';
+        els.joinNameModal.classList.remove('hidden');
+        setTimeout(() => {
+          els.inputModalJoinName.focus();
+          els.inputModalJoinName.select();
+        }, 50);
+      }
+
+      function joinQuickPeerRoom(skipNamePrompt = false) {
         const code = els.inputJoinRoomCode.value.trim().replace(/\D/g, '');
         if (code.length !== 6) {
           showToast('请输入完整的 6 位数字房间号', 'warn');
+          return;
+        }
+        const currentInputName = (els.inputJoinName ? els.inputJoinName.value : els.inputMyName.value).trim();
+        if (!skipNamePrompt && (!currentInputName || !state.nameConfirmedByUser)) {
+          promptNameBeforeJoin(code, () => joinQuickPeerRoom(true));
+          return;
+        }
+        if (!currentInputName) {
+          showToast('请先填写你的玩家名称再加入房间！', 'warn');
+          if (els.inputJoinName) els.inputJoinName.focus();
           return;
         }
         if (typeof window.Peer === 'undefined') {
@@ -1864,8 +1929,7 @@
         }
         closeAllP2P();
         state.isHost = false;
-        state.myName = els.inputMyName.value.trim() || '好兄弟';
-        saveStorage();
+        syncPlayerName(currentInputName, true);
 
         els.btnJoinQuickRoom.disabled = true;
         els.btnJoinQuickRoom.textContent = '连接中...';
@@ -2106,10 +2170,15 @@
       }
 
       // Guest joins via host invite code
-      async function generateGuestAnswer() {
+      async function generateGuestAnswer(skipNamePrompt = false) {
         const raw = els.textareaJoinOfferInput.value.trim();
         if (!raw) {
           showToast('请先粘贴房主发来的房间邀请码', 'warn');
+          return;
+        }
+        const currentInputName = (els.inputJoinName ? els.inputJoinName.value : els.inputMyName.value).trim();
+        if (!skipNamePrompt && (!currentInputName || !state.nameConfirmedByUser)) {
+          promptNameBeforeJoin('', () => generateGuestAnswer(true));
           return;
         }
         if (typeof RTCPeerConnection === 'undefined') {
@@ -2118,8 +2187,7 @@
         }
         closeAllP2P();
         state.isHost = false;
-        state.myName = els.inputMyName.value.trim() || '好兄弟';
-        saveStorage();
+        syncPlayerName(currentInputName || '好兄弟', true);
 
         els.btnGenerateAnswer.disabled = true;
         els.btnGenerateAnswer.textContent = '生成中...';
@@ -2917,9 +2985,29 @@
             els.timerText.textContent = `${Math.max(0, state.timeLeft)}s`;
 
             let clueMsg = '';
-            if (state.settings.autoHint !== false && state.timeLeft === Math.floor(state.settings.duration / 2) && state.currentWordObj && state.currentWordObj.h) {
-              clueMsg = `💡 线索提示：${state.currentWordObj.h}`;
-              addSystemChat(clueMsg);
+            if (
+              state.settings.autoHint !== false &&
+              state.timeLeft === Math.floor(state.settings.duration / 2) &&
+              state.guessedCountThisRound === 0 &&
+              state.currentWordObj &&
+              state.currentWordObj.w.length > 0
+            ) {
+              if (!state.revealedIndices.includes(0)) {
+                state.revealedIndices.push(0);
+              }
+              const firstChar = state.currentWordObj.w[0];
+              const sysMsg = `💡 时间过半仍无人答对，自动提示第一个字：「${firstChar}」`;
+              updateWordDisplay();
+              addSystemChat(sysMsg);
+              AudioFX.pop();
+              if (state.mode === 'online' && state.isHost) {
+                broadcastFromHost({
+                  type: 'hint_reveal',
+                  revealedIndices: state.revealedIndices,
+                  maskedWord: getMaskedWordString(),
+                  sysMsg
+                });
+              }
             }
             if (state.timeLeft <= 10 && state.timeLeft > 0) {
               els.timerBox.classList.add('timer-urgent');
@@ -3409,19 +3497,56 @@
           switchView('lobby');
         });
 
-        // Nickname
+        // Nickname (synced between top card, Join card, and Join modal)
         els.btnRandomName.addEventListener('click', () => {
           const pick = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
-          els.inputMyName.value = pick;
-          state.myName = pick;
-          saveStorage();
+          syncPlayerName(pick, true);
           if (state.isHost) initHostLobbyRoster();
           AudioFX.pop();
         });
-        els.inputMyName.addEventListener('change', () => {
-          state.myName = els.inputMyName.value.trim() || '灵魂画手';
-          saveStorage();
+        els.inputMyName.addEventListener('input', () => {
+          syncPlayerName(els.inputMyName.value, true);
           if (state.isHost) initHostLobbyRoster();
+        });
+        els.inputJoinName.addEventListener('input', () => {
+          syncPlayerName(els.inputJoinName.value, true);
+        });
+        els.btnJoinRandomName.addEventListener('click', () => {
+          const pick = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
+          syncPlayerName(pick, true);
+          AudioFX.pop();
+        });
+        els.btnModalRandomName.addEventListener('click', () => {
+          const pick = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
+          els.inputModalJoinName.value = pick;
+          AudioFX.pop();
+        });
+        els.btnCloseJoinModal.addEventListener('click', () => {
+          els.joinNameModal.classList.add('hidden');
+          state.pendingJoinAction = null;
+        });
+        els.joinNameModal.addEventListener('click', (e) => {
+          if (e.target === els.joinNameModal) {
+            els.joinNameModal.classList.add('hidden');
+            state.pendingJoinAction = null;
+          }
+        });
+        const confirmModalJoin = () => {
+          const nameVal = els.inputModalJoinName.value.trim();
+          if (!nameVal) {
+            showToast('请先填写你的玩家名称！', 'warn');
+            els.inputModalJoinName.focus();
+            return;
+          }
+          syncPlayerName(nameVal, true);
+          els.joinNameModal.classList.add('hidden');
+          const action = state.pendingJoinAction;
+          state.pendingJoinAction = null;
+          if (typeof action === 'function') action();
+        };
+        els.btnConfirmJoinWithName.addEventListener('click', confirmModalJoin);
+        els.inputModalJoinName.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); confirmModalJoin(); }
         });
 
         // Lobby selects update roster count live
@@ -3454,7 +3579,7 @@
         els.btnCopyRoomCode.addEventListener('click', () => copyText(state.roomCode, `房间号 ${state.roomCode} 已复制！`));
         els.btnCopyRoomLink.addEventListener('click', () => copyText(buildRoomInviteLink(state.roomCode), '邀请链接已复制！发微信/QQ 点开就能进房'));
         els.btnModalCopyRoomLink.addEventListener('click', () => copyText(buildRoomInviteLink(state.roomCode), '邀请链接已复制！'));
-        els.btnJoinQuickRoom.addEventListener('click', joinQuickPeerRoom);
+        els.btnJoinQuickRoom.addEventListener('click', () => joinQuickPeerRoom(false));
         els.inputJoinRoomCode.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') { e.preventDefault(); joinQuickPeerRoom(); }
         });
@@ -3471,7 +3596,7 @@
           }
           startGame('online');
         });
-        els.btnGenerateAnswer.addEventListener('click', generateGuestAnswer);
+        els.btnGenerateAnswer.addEventListener('click', () => generateGuestAnswer(false));
         els.btnCopyAnswer.addEventListener('click', () => copyText(els.textareaJoinAnswer.value, '应答码已复制！发回给房主吧'));
 
         // Local & Solo start
@@ -3627,7 +3752,7 @@
           if (roomParam.length === 6) {
             els.tabJoin.click();
             els.inputJoinRoomCode.value = roomParam;
-            showToast(`已自动填入邀请房间号 ${roomParam}，点击「加入房间」即可开黑！`, 'info');
+            promptNameBeforeJoin(roomParam, () => joinQuickPeerRoom(true));
           }
         } catch (e) {}
       });
